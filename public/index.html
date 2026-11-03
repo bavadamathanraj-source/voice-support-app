@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Support Widget</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #f8fafc; height: 100vh; position: relative; }
+
+        /* Bigger, roomier widget popup */
+        .support-widget {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 420px;
+            height: 520px;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .widget-header { background-color: #0f172a; color: #ffffff; padding: 28px; position: relative; }
+        .widget-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+        .widget-header p { font-size: 15px; color: #94a3b8; }
+        .close-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+        .widget-body { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; }
+        .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
+        .option-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .option-content h4 { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+        .option-content p { font-size: 14px; color: #64748b; }
+        .icon-circle { width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0f172a; }
+
+        .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .timer { font-size: 36px; font-weight: 700; color: #16a34a; margin: 16px 0; }
+        
+        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 16px; }
+        .btn-red:hover { background: #dc2626; }
+
+        .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
+        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; cursor: pointer; font-weight: 500; }
+        .nav-item.active { color: #0f172a; }
+        .nav-icon { font-size: 18px; margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+
+    <div class="support-widget">
+        <div class="widget-header">
+            <button class="close-btn">×</button>
+            <h2 id="widgetTitle">Hi there 👋</h2>
+            <p id="widgetSub">How can we help?</p>
+        </div>
+
+        <div class="widget-body" id="defaultView">
+            <div class="option-card" id="callBtn">
+                <div class="option-content">
+                    <h4>Talk to us</h4>
+                    <p>Start a live voice call with support</p>
+                </div>
+                <div class="icon-circle">📞</div>
+            </div>
+        </div>
+
+        <div class="active-call-box" id="callView">
+            <h3 id="status" style="font-size: 18px; color: #0f172a;">Connecting to Agent...</h3>
+            <div class="timer" id="callTimer">00:00</div>
+            <p style="font-size: 14px; color: #64748b;">Microphone active</p>
+            <button id="endCallBtn" class="btn-red">End Call</button>
+        </div>
+
+        <div class="widget-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div>Home</div>
+            <div class="nav-item"><div class="nav-icon">💬</div>Messages</div>
+            <div class="nav-item"><div class="nav-icon">🎫</div>Tickets</div>
+        </div>
+    </div>
+
+    <audio id="remoteAudio" autoplay></audio>
+
+    <script>
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${protocol}//${window.location.host}`);
+        const statusEl = document.getElementById('status');
+        const defaultView = document.getElementById('defaultView');
+        const callView = document.getElementById('callView');
+        const widgetTitle = document.getElementById('widgetTitle');
+        const widgetSub = document.getElementById('widgetSub');
+        const callTimer = document.getElementById('callTimer');
+        
+        let pc, timerInterval, seconds = 0;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        ws.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'answer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                statusEl.innerText = 'Connected! Speak now.';
+                startTimer();
+            } else if (data.type === 'hangup') {
+                resetCallState();
+            } else if (data.candidate && pc) {
+                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        };
+
+        function startTimer() {
+            seconds = 0;
+            timerInterval = setInterval(() => {
+                seconds++;
+                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                callTimer.innerText = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function resetCallState() {
+            clearInterval(timerInterval);
+            if (pc) pc.close();
+            pc = null;
+            defaultView.style.display = 'flex';
+            callView.style.display = 'none';
+            widgetTitle.innerText = 'Hi there 👋';
+            widgetSub.innerText = 'How can we help?';
+        }
+
+        document.getElementById('callBtn').onclick = async () => {
+            defaultView.style.display = 'none';
+            callView.style.display = 'flex';
+            widgetTitle.innerText = 'Live Voice Call';
+            widgetSub.innerText = 'Secure WebRTC Channel';
+
+            pc = new RTCPeerConnection(rtcConfig);
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) ws.send(JSON.stringify({ candidate: event.candidate }));
+            };
+
+            pc.ontrack = (event) => {
+                document.getElementById('remoteAudio').srcObject = event.streams[0];
+            };
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(JSON.stringify({ type: 'offer', offer }));
+        };
+
+        document.getElementById('endCallBtn').onclick = () => {
+            ws.send(JSON.stringify({ type: 'hangup' }));
+            resetCallState();
+        };
+    </script>
+</body>
+</html>
