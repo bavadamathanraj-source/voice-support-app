@@ -131,6 +131,15 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
                 clearInterval(ringInterval);
                 ringInterval = null;
             }
+            <div id="incoming-call-modal" style="display: none;">
+  <p>Incoming Call...</p>
+
+  <!-- Your existing Accept button -->
+  <button id="accept-call-btn" onclick="acceptCall()">Accept</button>
+
+  <!-- ADD THIS LINE FOR DECLINE -->
+  <button id="decline-call-btn" onclick="declineCall()" style="background-color: #ff4d4d; color: white; margin-left: 10px;">Decline</button>
+</div>
         }
 
         ws.onopen = () => { headerSub.innerText = 'Online & Ready'; };
@@ -221,4 +230,4 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
         };
     </script>
 </body>
-</html>
+</html> 

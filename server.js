@@ -15,6 +15,15 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         const data = JSON.parse(message);
         console.log('Received signal:', data.type);
+        // Add this inside your ws.on('message', ...) handler:
+  if (data.type === 'decline-call') {
+    console.log('Call declined by agent.');
+    
+    // Send a message to the customer that the call was declined
+    if (customerSocket && customerSocket.readyState === WebSocket.OPEN) {
+      customerSocket.send(JSON.stringify({ type: 'call-declined' }));
+    }
+  }
 
         // Pass signals between Customer and Agent
         wss.clients.forEach((client) => {

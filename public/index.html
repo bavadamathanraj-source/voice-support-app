@@ -106,6 +106,22 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
             } else if (data.candidate && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
+            // Add this check inside your WebSocket message listener on index.html
+    if (data.type === 'call-declined') {
+        alert('The agent is currently unavailable or declined the call.');
+        
+        // Reset the customer's call button or UI back to normal
+        const callBtn = document.getElementById('call-btn'); // Change 'call-btn' to match your actual button ID if different
+        if (callBtn) {
+            callBtn.innerText = 'Call Support';
+            callBtn.disabled = false;
+        }
+
+        // If you have a ringing sound or timer on the customer side, stop it here too
+        if (typeof stopCustomerRing === 'function') {
+            stopCustomerRing();
+        }
+    }
         };
 
         function startTimer() {
