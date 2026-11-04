@@ -7,7 +7,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #f8fafc; height: 100vh; position: relative; }
 
-        /* Bigger, roomier widget popup */
         .support-widget {
             position: fixed;
             bottom: 24px;
@@ -23,38 +22,49 @@
             overflow: hidden;
         }
 
-        .widget-header { background-color: #0f172a; color: #ffffff; padding: 28px; position: relative; }
-        .widget-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+        .widget-header { background-color: #0f172a; color: #ffffff; padding: 24px 28px; position: relative; }
+        .widget-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
         .widget-header p { font-size: 14px; color: #94a3b8; }
         .status-badge { display: inline-block; width: 10px; height: 10px; background: #22c55e; border-radius: 50%; margin-right: 6px; }
 
-        .widget-body { padding: 24px; flex: 1; background: #f8fafc; display: flex; flex-direction: column; justify-content: center; }
-        .incoming-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px; text-align: center; }
-        .incoming-card h4 { font-size: 18px; color: #0f172a; margin-bottom: 8px; }
-        .incoming-card p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+        .widget-body { padding: 20px; flex: 1; background: #f8fafc; display: flex; flex-direction: column; overflow-y: auto; }
+        .incoming-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 16px; }
+        .incoming-card h4 { font-size: 18px; color: #0f172a; margin-bottom: 6px; }
+        .incoming-card p { font-size: 14px; color: #64748b; }
 
-        .btn-green { width: 100%; background: #16a34a; color: #fff; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; }
+        .btn-green { background: #16a34a; color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; flex: 1; }
         .btn-green:hover { background: #15803d; }
 
-        .active-box { display: none; text-align: center; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .timer { font-size: 36px; font-weight: 700; color: #0f172a; margin: 12px 0 20px 0; }
-        
-        .btn-group { display: flex; gap: 12px; width: 100%; margin-bottom: 12px; }
-        .control-btn { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 14px; cursor: pointer; color: #334155; }
-        .control-btn.active { background: #ef4444; color: #fff; border-color: #ef4444; }
-        
-        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; }
+        .btn-red { background: #ef4444; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; flex: 1; }
         .btn-red:hover { background: #dc2626; }
 
+        .active-box { display: none; text-align: center; flex-direction: column; justify-content: center; align-items: center; padding: 16px; background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
+        .timer { font-size: 32px; font-weight: 700; color: #0f172a; margin: 8px 0 16px 0; }
+        
+        .btn-group { display: flex; gap: 12px; width: 100%; margin-bottom: 12px; }
+        .control-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 14px; cursor: pointer; color: #334155; }
+        .control-btn.active { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+        /* Tabs and View Sections */
+        .view-section { display: none; flex-direction: column; flex: 1; }
+        .view-section.active-view { display: flex; }
+
+        .log-header { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .log-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 360px; }
+        .log-item { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .log-item .type { font-weight: 600; }
+        .log-item.completed .type { color: #16a34a; }
+        .log-item.declined .type { color: #ef4444; }
+        .log-item .time { color: #94a3b8; font-size: 12px; }
+
         .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
-        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; font-weight: 500; }
+        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; font-weight: 500; cursor: pointer; }
         .nav-item.active { color: #0f172a; }
         .nav-icon { font-size: 18px; margin-bottom: 2px; }
     </style>
 </head>
 <body>
 
-    <!-- Ringing audio synthesized via Web Audio API (no external file needed) -->
     <audio id="remoteAudio" autoplay></audio>
 
     <div class="support-widget">
@@ -64,35 +74,47 @@
         </div>
 
         <div class="widget-body">
-            <div id="incomingState" class="incoming-card">
-                <h4>System Idle</h4>
-                <p id="callStatusText">Waiting for customer to call...</p>
-                <div id="answerSection" style="display: none;">
-                    <button id="answerBtn" class="btn-green">Answer Call</button>
+            <!-- Calls View (Default) -->
+            <div id="callsView" class="view-section active-view">
+                <div id="incomingState" class="incoming-card">
+                    <h4>System Idle</h4>
+                    <p id="callStatusText">Waiting for customer to call...</p>
+                    <div id="answerSection" style="display: none; gap: 10px; margin-top: 16px;">
+                        <button id="answerBtn" class="btn-green">Answer</button>
+                        <button id="declineBtn" class="btn-red">Decline</button>
+                    </div>
+                </div>
+
+                <div id="activeState" class="active-box">
+                    <p style="font-size: 14px; font-weight: 600; color: #16a34a;">● Live Voice Call</p>
+                    <div class="timer" id="callTimer">00:00</div>
+                    <div class="btn-group">
+                        <button id="muteBtn" class="control-btn">Mute</button>
+                        <button id="holdBtn" class="control-btn">Hold</button>
+                    </div>
+                    <button id="agentEndBtn" class="btn-red" style="width: 100%;">End Call</button>
                 </div>
             </div>
 
-            <div id="activeState" class="active-box">
-                <p style="font-size: 14px; font-weight: 600; color: #16a34a;">● Live Voice Call</p>
-                <div class="timer" id="callTimer">00:00</div>
-                <div class="btn-group">
-                    <button id="muteBtn" class="control-btn">Mute</button>
-                    <button id="holdBtn" class="control-btn">Hold</button>
+            <!-- Stats View (Call History) -->
+            <div id="statsView" class="view-section">
+                <div class="log-header">Recent Call History</div>
+                <div class="log-list" id="logList">
+                    <div class="log-item" style="color: #94a3b8; justify-content: center;" id="emptyLog">No recent calls</div>
                 </div>
-                <button id="agentEndBtn" class="btn-red">End Call</button>
             </div>
         </div>
 
         <div class="widget-nav">
-            <div class="nav-item active"><div class="nav-icon">📞</div>Calls</div>
-            <div class="nav-item"><div class="nav-icon">📊</div>Stats</div>
-            <div class="nav-item"><div class="nav-icon">⚙️</div>Settings</div>
+            <div class="nav-item active" id="navCalls"><div class="nav-icon">📞</div>Calls</div>
+            <div class="nav-item" id="navStats"><div class="nav-icon">📊</div>Stats</div>
+            <div class="nav-item" id="navSettings"><div class="nav-icon">⚙️</div>Settings</div>
         </div>
     </div>
 
     <script>
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(`${protocol}//${window.location.host}`);
+        const ws = new WebSocket(`${protocol}//${window.location.host}`);
         const headerSub = document.getElementById('headerSub');
         const callStatusText = document.getElementById('callStatusText');
         const answerSection = document.getElementById('answerSection');
@@ -101,12 +123,65 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
         const callTimer = document.getElementById('callTimer');
         const muteBtn = document.getElementById('muteBtn');
         const holdBtn = document.getElementById('holdBtn');
+        const logList = document.getElementById('logList');
+
+        // Navigation elements
+        const navCalls = document.getElementById('navCalls');
+        const navStats = document.getElementById('navStats');
+        const callsView = document.getElementById('callsView');
+        const statsView = document.getElementById('statsView');
 
         let pc, customerOffer, timerInterval, seconds = 0;
         let isMuted = false, isOnHold = false, ringInterval = null;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-        // Simple built-in ringtone generator using Web Audio API
+        // Load logs from localStorage on startup
+        let callLogs = JSON.parse(localStorage.getItem('agent_call_logs')) || [];
+        renderLogs();
+
+        function renderLogs() {
+            logList.innerHTML = '';
+            if (callLogs.length === 0) {
+                logList.innerHTML = `<div class="log-item" style="color: #94a3b8; justify-content: center;" id="emptyLog">No recent calls</div>`;
+                return;
+            }
+
+            callLogs.forEach(log => {
+                const item = document.createElement('div');
+                item.className = `log-item ${log.status.toLowerCase()}`;
+                const isCompleted = log.status === 'Completed';
+                const label = isCompleted ? `Completed (${log.duration})` : 'Declined / Missed';
+                
+                item.innerHTML = `
+                    <span class="type">${isCompleted ? '✓' : '✕'} ${label}</span>
+                    <span class="time">${log.time}</span>
+                `;
+                logList.appendChild(item);
+            });
+        }
+
+        function addCallLog(status, duration = '') {
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            callLogs.unshift({ status, duration, time: timeStr }); // Add to beginning of array
+            localStorage.setItem('agent_call_logs', JSON.stringify(callLogs)); // Save to browser storage
+            renderLogs();
+        }
+
+        // Tab Switching Logic
+        navCalls.onclick = () => {
+            navCalls.classList.add('active');
+            navStats.classList.remove('active');
+            callsView.classList.add('active-view');
+            statsView.classList.remove('active-view');
+        };
+
+        navStats.onclick = () => {
+            navStats.classList.add('active');
+            navCalls.classList.remove('active');
+            statsView.classList.add('active-view');
+            callsView.classList.remove('active-view');
+        };
+
         function playRingSound() {
             if (ringInterval) return;
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -115,7 +190,7 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz tone
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
                 osc.frequency.setValueAtTime(480, audioCtx.currentTime + 0.1);
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
@@ -131,15 +206,6 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
                 clearInterval(ringInterval);
                 ringInterval = null;
             }
-            <div id="incoming-call-modal" style="display: none;">
-  <p>Incoming Call...</p>
-
-  <!-- Your existing Accept button -->
-  <button id="accept-call-btn" onclick="acceptCall()">Accept</button>
-
-  <!-- ADD THIS LINE FOR DECLINE -->
-  <button id="decline-call-btn" onclick="declineCall()" style="background-color: #ff4d4d; color: white; margin-left: 10px;">Decline</button>
-</div>
         }
 
         ws.onopen = () => { headerSub.innerText = 'Online & Ready'; };
@@ -150,10 +216,14 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
                 customerOffer = data.offer;
                 headerSub.innerText = '🔔 Incoming Call!';
                 callStatusText.innerText = 'Customer is calling you...';
-                answerSection.style.display = 'block';
+                answerSection.style.display = 'flex';
                 playRingSound();
             } else if (data.type === 'hangup') {
+                const finalDuration = callTimer.innerText;
                 resetAgentState();
+                if (seconds > 0) {
+                    addCallLog('Completed', finalDuration);
+                }
             } else if (data.candidate && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
@@ -206,6 +276,12 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
             ws.send(JSON.stringify({ type: 'answer', answer }));
         };
 
+        document.getElementById('declineBtn').onclick = () => {
+            ws.send(JSON.stringify({ type: 'call-declined' }));
+            addCallLog('Declined');
+            resetAgentState();
+        };
+
         muteBtn.onclick = () => {
             if (!pc) return;
             isMuted = !isMuted;
@@ -225,9 +301,11 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
         };
 
         document.getElementById('agentEndBtn').onclick = () => {
+            const finalDuration = callTimer.innerText;
             ws.send(JSON.stringify({ type: 'hangup' }));
+            addCallLog('Completed', finalDuration);
             resetAgentState();
         };
     </script>
 </body>
-</html> 
+</html>

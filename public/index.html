@@ -7,7 +7,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #f8fafc; height: 100vh; position: relative; }
 
-        /* Bigger, roomier widget popup */
         .support-widget {
             position: fixed;
             bottom: 24px;
@@ -38,7 +37,10 @@
         .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
         .timer { font-size: 36px; font-weight: 700; color: #16a34a; margin: 16px 0; }
         
-        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 16px; }
+        .control-btn { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 14px; cursor: pointer; color: #334155; }
+        .control-btn.active { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 12px; }
         .btn-red:hover { background: #dc2626; }
 
         .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
@@ -69,7 +71,13 @@
         <div class="active-call-box" id="callView">
             <h3 id="status" style="font-size: 18px; color: #0f172a;">Connecting to Agent...</h3>
             <div class="timer" id="callTimer">00:00</div>
-            <p style="font-size: 14px; color: #64748b;">Microphone active</p>
+            <p style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Microphone active</p>
+            
+            <!-- Hidden by default until the call is connected -->
+            <div id="customerControls" style="display: none; gap: 12px; width: 100%;">
+                <button id="customerMuteBtn" class="control-btn">Mute</button>
+            </div>
+            
             <button id="endCallBtn" class="btn-red">End Call</button>
         </div>
 
@@ -84,15 +92,18 @@
 
     <script>
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(`${protocol}//${window.location.host}`);
+        const ws = new WebSocket(`${protocol}//${window.location.host}`);
         const statusEl = document.getElementById('status');
         const defaultView = document.getElementById('defaultView');
         const callView = document.getElementById('callView');
         const widgetTitle = document.getElementById('widgetTitle');
         const widgetSub = document.getElementById('widgetSub');
         const callTimer = document.getElementById('callTimer');
+        const customerMuteBtn = document.getElementById('customerMuteBtn');
+        const customerControls = document.getElementById('customerControls');
         
         let pc, timerInterval, seconds = 0;
+        let isCustomerMuted = false;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         ws.onmessage = async (event) => {
@@ -100,28 +111,16 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
             if (data.type === 'answer') {
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                 statusEl.innerText = 'Connected! Speak now.';
+                customerControls.style.display = 'flex'; // Reveal mute button on connect
                 startTimer();
-            } else if (data.type === 'hangup') {
+            } else if (data.type === 'hangup' || data.type === 'call-declined') {
+                if (data.type === 'call-declined') {
+                    alert('The agent is currently unavailable or declined the call.');
+                }
                 resetCallState();
             } else if (data.candidate && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
-            // Add this check inside your WebSocket message listener on index.html
-    if (data.type === 'call-declined') {
-        alert('The agent is currently unavailable or declined the call.');
-        
-        // Reset the customer's call button or UI back to normal
-        const callBtn = document.getElementById('call-btn'); // Change 'call-btn' to match your actual button ID if different
-        if (callBtn) {
-            callBtn.innerText = 'Call Support';
-            callBtn.disabled = false;
-        }
-
-        // If you have a ringing sound or timer on the customer side, stop it here too
-        if (typeof stopCustomerRing === 'function') {
-            stopCustomerRing();
-        }
-    }
         };
 
         function startTimer() {
@@ -138,6 +137,10 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
             clearInterval(timerInterval);
             if (pc) pc.close();
             pc = null;
+            isCustomerMuted = false;
+            customerMuteBtn.innerText = 'Mute';
+            customerMuteBtn.classList.remove('active');
+            customerControls.style.display = 'none'; // Hide mute button when call ends
             defaultView.style.display = 'flex';
             callView.style.display = 'none';
             widgetTitle.innerText = 'Hi there 👋';
@@ -165,6 +168,18 @@ const ws = new WebSocket(`${protocol}//${window.location.host}`);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             ws.send(JSON.stringify({ type: 'offer', offer }));
+        };
+
+        customerMuteBtn.onclick = () => {
+            if (!pc) return;
+            isCustomerMuted = !isCustomerMuted;
+            pc.getSenders().forEach(sender => {
+                if (sender.track && sender.track.kind === 'audio') {
+                    sender.track.enabled = !isCustomerMuted;
+                }
+            });
+            customerMuteBtn.innerText = isCustomerMuted ? 'Unmute' : 'Mute';
+            customerMuteBtn.classList.toggle('active', isCustomerMuted);
         };
 
         document.getElementById('endCallBtn').onclick = () => {

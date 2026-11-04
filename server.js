@@ -13,33 +13,29 @@ wss.on('connection', (ws) => {
     console.log('A user connected!');
 
     ws.on('message', (message) => {
-        const data = JSON.parse(message);
-        console.log('Received signal:', data.type);
-        // Add this inside your ws.on('message', ...) handler:
-  if (data.type === 'decline-call') {
-    console.log('Call declined by agent.');
-    
-    // Send a message to the customer that the call was declined
-    if (customerSocket && customerSocket.readyState === WebSocket.OPEN) {
-      customerSocket.send(JSON.stringify({ type: 'call-declined' }));
-    }
-  }
+        try {
+            const data = JSON.parse(message);
+            console.log('Received signal:', data.type);
 
-        // Pass signals between Customer and Agent
-        wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === ws.OPEN) {
-                client.send(JSON.stringify(data));
+            // Handle call decline explicitly if needed
+            if (data.type === 'decline-call') {
+                console.log('Call declined by agent.');
             }
-        });
+
+            // Pass signals between Customer and Agent (broadcast to other connected clients)
+            wss.clients.forEach((client) => {
+                if (client !== ws && client.readyState === client.OPEN) {
+                    client.send(message); // Forward the exact message string received
+                }
+            });
+        } catch (err) {
+            console.error('Failed to parse incoming message:', err);
+        }
     });
 
     ws.on('close', () => console.log('A user disconnected.'));
 });
 
-// Change this:
-// server.listen(3000, ...)
-
-// To this:
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
