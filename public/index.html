@@ -12,7 +12,7 @@
             bottom: 24px;
             right: 24px;
             width: 420px;
-            height: 520px;
+            height: 540px;
             background: #ffffff;
             border-radius: 20px;
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
@@ -28,7 +28,13 @@
         .close-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
 
         .widget-body { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; }
-        .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 14px; font-weight: 600; color: #334155; }
+        .phone-input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #fff; }
+        .phone-input:focus { border-color: #0f172a; }
+
+        .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
         .option-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         .option-content h4 { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
         .option-content p { font-size: 14px; color: #64748b; }
@@ -59,6 +65,11 @@
         </div>
 
         <div class="widget-body" id="defaultView">
+            <div class="form-group">
+                <label for="customerPhone">Your Phone Number</label>
+                <input type="tel" id="customerPhone" class="phone-input" placeholder="+971 50 123 4567" />
+            </div>
+
             <div class="option-card" id="callBtn">
                 <div class="option-content">
                     <h4>Talk to us</h4>
@@ -70,10 +81,9 @@
 
         <div class="active-call-box" id="callView">
             <h3 id="status" style="font-size: 18px; color: #0f172a;">Connecting to Agent...</h3>
-            <div class="timer" id="callTimer">00:00</div>
-            <p style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Microphone active</p>
+            <p id="displayPhone" style="font-size: 14px; color: #64748b; margin-top: 4px;"></p>
+            <div class="timer" id="callTimer" style="display: none;">00:00</div>
             
-            <!-- Hidden by default until the call is connected -->
             <div id="customerControls" style="display: none; gap: 12px; width: 100%;">
                 <button id="customerMuteBtn" class="control-btn">Mute</button>
             </div>
@@ -93,6 +103,7 @@
     <script>
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
+        
         const statusEl = document.getElementById('status');
         const defaultView = document.getElementById('defaultView');
         const callView = document.getElementById('callView');
@@ -101,25 +112,55 @@
         const callTimer = document.getElementById('callTimer');
         const customerMuteBtn = document.getElementById('customerMuteBtn');
         const customerControls = document.getElementById('customerControls');
+        const customerPhoneInput = document.getElementById('customerPhone');
+        const displayPhone = document.getElementById('displayPhone');
         
         let pc, timerInterval, seconds = 0;
         let isCustomerMuted = false;
+        let assignedAgentId = null;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         ws.onmessage = async (event) => {
             const data = JSON.parse(event.data);
-            if (data.type === 'answer') {
-                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                statusEl.innerText = 'Connected! Speak now.';
-                customerControls.style.display = 'flex'; // Reveal mute button on connect
+
+            if (data.type === 'QUEUED') {
+                statusEl.innerText = `All agents busy. You are in queue (Position: ${data.position})`;
+            } 
+            else if (data.type === 'CALL_CONNECTED') {
+                assignedAgentId = data.agentId;
+                statusEl.innerText = `Connected with Agent (${assignedAgentId})!`;
+                callTimer.style.display = 'block';
+                customerControls.style.display = 'flex';
                 startTimer();
-            } else if (data.type === 'hangup' || data.type === 'call-declined') {
-                if (data.type === 'call-declined') {
-                    alert('The agent is currently unavailable or declined the call.');
-                }
-                resetCallState();
-            } else if (data.candidate && pc) {
+
+                // Now that an agent is assigned and ready, create WebRTC offer
+                pc = new RTCPeerConnection(rtcConfig);
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        ws.send(JSON.stringify({ type: 'CANDIDATE', targetWsId: ws, candidate: event.candidate }));
+                    }
+                };
+
+                pc.ontrack = (event) => {
+                    document.getElementById('remoteAudio').srcObject = event.streams[0];
+                };
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                ws.send(JSON.stringify({ type: 'OFFER', targetWsId: ws, offer }));
+            }
+            else if (data.type === 'ANSWER') {
+                if (!pc) return;
+                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            }
+            else if (data.type === 'CANDIDATE' && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+            else if (data.type === 'HANGUP') {
+                resetCallState();
             }
         };
 
@@ -138,36 +179,34 @@
             if (pc) pc.close();
             pc = null;
             isCustomerMuted = false;
+            callTimer.style.display = 'none';
             customerMuteBtn.innerText = 'Mute';
             customerMuteBtn.classList.remove('active');
-            customerControls.style.display = 'none'; // Hide mute button when call ends
+            customerControls.style.display = 'none';
             defaultView.style.display = 'flex';
             callView.style.display = 'none';
             widgetTitle.innerText = 'Hi there 👋';
             widgetSub.innerText = 'How can we help?';
+            displayPhone.innerText = '';
         }
 
         document.getElementById('callBtn').onclick = async () => {
+            const phoneNumber = customerPhoneInput.value.trim();
+            if (!phoneNumber) {
+                alert('Please enter your phone number before starting the call.');
+                customerPhoneInput.focus();
+                return;
+            }
+
             defaultView.style.display = 'none';
             callView.style.display = 'flex';
             widgetTitle.innerText = 'Live Voice Call';
-            widgetSub.innerText = 'Secure WebRTC Channel';
+            widgetSub.innerText = 'Smart Queue Routing';
+            displayPhone.innerText = `Phone: ${phoneNumber}`;
+            statusEl.innerText = 'Connecting to queue...';
 
-            pc = new RTCPeerConnection(rtcConfig);
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) ws.send(JSON.stringify({ candidate: event.candidate }));
-            };
-
-            pc.ontrack = (event) => {
-                document.getElementById('remoteAudio').srcObject = event.streams[0];
-            };
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            ws.send(JSON.stringify({ type: 'offer', offer }));
+            // Register customer with the server to trigger smart routing/queueing
+            ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
         };
 
         customerMuteBtn.onclick = () => {
@@ -183,7 +222,7 @@
         };
 
         document.getElementById('endCallBtn').onclick = () => {
-            ws.send(JSON.stringify({ type: 'hangup' }));
+            ws.send(JSON.stringify({ type: 'HANGUP' }));
             resetCallState();
         };
     </script>
