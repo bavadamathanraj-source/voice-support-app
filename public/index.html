@@ -2,48 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Customer Support Widget</title>
+    <title>Customer Widget</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #f8fafc; height: 100vh; }
-        .support-widget { position: fixed; bottom: 24px; right: 24px; width: 400px; height: 520px; background: #fff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
-        .widget-header { background-color: #0f172a; color: #fff; padding: 24px; }
-        .widget-body { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; }
-        .phone-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; }
-        .option-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-        .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .timer { font-size: 36px; font-weight: 700; color: #22c55e; margin: 12px 0; }
-        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+        .widget { position: fixed; bottom: 24px; right: 24px; width: 380px; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
+        .header { background: #0f172a; color: #fff; padding: 20px; }
+        .body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        .input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
+        .btn { width: 100%; background: #0f172a; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-red { background: #ef4444; }
+        .timer { font-size: 32px; font-weight: 700; color: #22c55e; margin: 10px 0; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="support-widget">
-        <div class="widget-header">
-            <h2>Support Center</h2>
-            <p style="color: #94a3b8; font-size: 14px;">Instant Live Voice Channel</p>
+    <div class="widget">
+        <div class="header">
+            <h3>Support Widget</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Talk to a live agent</p>
         </div>
 
-        <div class="widget-body" id="defaultView">
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 14px; font-weight: 600; color: #334155;">Your Phone Number</label>
-                <input type="tel" id="customerPhone" class="phone-input" placeholder="+971 50 123 4567" />
-            </div>
-
-            <div class="option-card" id="callBtn">
-                <div>
-                    <h4 style="color: #0f172a;">Call Support Now</h4>
-                    <p style="font-size: 13px; color: #64748b;">Connect directly to an agent</p>
-                </div>
-                <div style="font-size: 20px;">📞</div>
-            </div>
+        <div class="body" id="formView">
+            <input type="tel" id="phoneInput" class="input" placeholder="Enter Phone Number..." />
+            <button id="callBtn" class="btn">Start Voice Call</button>
         </div>
 
-        <div class="active-call-box" id="callView">
-            <h3 id="status" style="font-size: 16px; color: #0f172a;">Initiating Call...</h3>
-            <p id="displayPhone" style="font-size: 14px; color: #64748b; margin-top: 4px;"></p>
+        <div class="body" id="callView" style="display: none; text-align: center;">
+            <h4 id="statusText" style="color: #0f172a;">Connecting...</h4>
             <div class="timer" id="callTimer" style="display: none;">00:00</div>
-            <button id="endCallBtn" class="btn-red" style="margin-top: 20px;">End Call</button>
+            <button id="endBtn" class="btn btn-red">End Call</button>
         </div>
     </div>
 
@@ -53,15 +41,7 @@
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
 
-        const statusEl = document.getElementById('status');
-        const defaultView = document.getElementById('defaultView');
-        const callView = document.getElementById('callView');
-        const callTimer = document.getElementById('callTimer');
-        const customerPhoneInput = document.getElementById('customerPhone');
-        const displayPhone = document.getElementById('displayPhone');
-
         let pc = null;
-        let assignedAgentSocketId = null;
         let timerInterval, seconds = 0;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -69,56 +49,45 @@
             const data = JSON.parse(event.data);
 
             if (data.type === 'QUEUED') {
-                statusEl.innerText = `All agents busy. You are in queue (Position: ${data.position})`;
-            }
-            else if (data.type === 'CALL_DECLINED_REQUEUED') {
-                statusEl.innerText = data.message;
+                document.getElementById('statusText').innerText = `All agents busy. Queue position: ${data.position}`;
             }
             else if (data.type === 'CALL_CONNECTED') {
-                assignedAgentSocketId = data.agentSocketId;
-                statusEl.innerText = `Connected to ${data.agentName}!`;
-                callTimer.style.display = 'block';
+                document.getElementById('statusText').innerText = `Connected to ${data.agentId}!`;
+                document.getElementById('callTimer').style.display = 'block';
                 startTimer();
 
-                // Setup WebRTC connection
-                pc = new RTCPeerConnection(rtcConfig);
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-                pc.onicecandidate = (e) => {
-                    if (e.candidate) {
-                        ws.send(JSON.stringify({
-                            type: 'CANDIDATE',
-                            targetId: assignedAgentSocketId,
-                            candidate: e.candidate
-                        }));
-                    }
-                };
-
-                pc.ontrack = (e) => {
-                    document.getElementById('remoteAudio').srcObject = e.streams[0];
-                };
-
-                // Create Offer specifically for assigned Agent
+                setupWebRTC();
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
-                ws.send(JSON.stringify({
-                    type: 'OFFER',
-                    targetId: assignedAgentSocketId,
-                    offer: offer
-                }));
+                ws.send(JSON.stringify({ type: 'offer', offer }));
             }
-            else if (data.type === 'ANSWER') {
+            else if (data.type === 'answer') {
                 if (!pc) return;
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
             }
-            else if (data.type === 'CANDIDATE' && pc) {
+            else if (data.type === 'candidate' && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
             else if (data.type === 'HANGUP') {
-                resetCallState();
+                resetCall();
             }
         };
+
+        async function setupWebRTC() {
+            pc = new RTCPeerConnection(rtcConfig);
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            pc.onicecandidate = (e) => {
+                if (e.candidate) {
+                    ws.send(JSON.stringify({ type: 'candidate', candidate: e.candidate }));
+                }
+            };
+
+            pc.ontrack = (e) => {
+                document.getElementById('remoteAudio').srcObject = e.streams[0];
+            };
+        }
 
         function startTimer() {
             seconds = 0;
@@ -126,39 +95,36 @@
                 seconds++;
                 const m = String(Math.floor(seconds / 60)).padStart(2, '0');
                 const s = String(seconds % 60).padStart(2, '0');
-                callTimer.innerText = `${m}:${s}`;
+                document.getElementById('callTimer').innerText = `${m}:${s}`;
             }, 1000);
         }
 
-        function resetCallState() {
+        function resetCall() {
             clearInterval(timerInterval);
             if (pc) pc.close();
             pc = null;
-            callTimer.style.display = 'none';
-            defaultView.style.display = 'flex';
-            callView.style.display = 'none';
-            displayPhone.innerText = '';
+            document.getElementById('callView').style.display = 'none';
+            document.getElementById('formView').style.display = 'flex';
+            document.getElementById('callTimer').style.display = 'none';
         }
 
         document.getElementById('callBtn').onclick = () => {
-            const phoneNumber = customerPhoneInput.value.trim();
+            const phoneNumber = document.getElementById('phoneInput').value.trim();
             if (!phoneNumber) {
-                alert('Please enter your phone number first.');
-                customerPhoneInput.focus();
+                alert('Please enter your phone number.');
                 return;
             }
 
-            defaultView.style.display = 'none';
-            callView.style.display = 'flex';
-            displayPhone.innerText = `Calling from: ${phoneNumber}`;
-            statusEl.innerText = 'Routing call...';
+            document.getElementById('formView').style.display = 'none';
+            document.getElementById('callView').style.display = 'flex';
+            document.getElementById('statusText').innerText = 'Finding available agent...';
 
             ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
         };
 
-        document.getElementById('endCallBtn').onclick = () => {
+        document.getElementById('endBtn').onclick = () => {
             ws.send(JSON.stringify({ type: 'HANGUP' }));
-            resetCallState();
+            resetCall();
         };
     </script>
 </body>

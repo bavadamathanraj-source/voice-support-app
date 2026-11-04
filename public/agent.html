@@ -2,30 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Enterprise Agent Console</title>
+    <title>Agent Dashboard</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; }
         .header { background: #1e293b; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
-        .header h1 { font-size: 20px; font-weight: 700; color: #fff; }
         .stats-bar { display: flex; gap: 24px; background: #1e293b; padding: 12px 32px; border-bottom: 1px solid #334155; font-size: 14px; }
         .stat-badge { background: #334155; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
-        .main-container { flex: 1; display: grid; grid-template-columns: 300px 1fr; padding: 24px; gap: 24px; }
-        .sidebar { background: #1e293b; border-radius: 16px; padding: 20px; border: 1px solid #334155; }
-        .content-area { background: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .call-card { width: 100%; max-width: 480px; background: #0f172a; padding: 32px; border-radius: 14px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 16px; text-align: center; }
-        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; flex: 1; }
+        .main-container { flex: 1; display: flex; padding: 24px; justify-content: center; align-items: center; }
+        .card { background: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; width: 100%; max-width: 500px; text-align: center; display: flex; flex-direction: column; gap: 20px; }
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
         .btn-red { background: #ef4444; color: #fff; }
         .btn-yellow { background: #eab308; color: #000; }
-        .timer { font-size: 36px; font-weight: 700; color: #22c55e; margin: 10px 0; }
-        .btn-group { display: flex; gap: 12px; }
+        .timer { font-size: 36px; font-weight: 700; color: #22c55e; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>🎧 Enterprise Call Center — Agent Console</h1>
-        <div id="agentStatusDisplay" style="font-weight: 600; color: #22c55e;">Status: IDLE</div>
+        <h1>🟢 Agent Dashboard</h1>
+        <div id="statusText" style="font-weight: 600; color: #22c55e;">Online & Ready</div>
     </div>
 
     <div class="stats-bar">
@@ -35,25 +31,18 @@
     </div>
 
     <div class="main-container">
-        <div class="sidebar">
-            <h3 style="color: #94a3b8; font-size: 14px; margin-bottom: 8px;">CONSOLE SESSION</h3>
-            <div style="font-size: 14px; color: #cbd5e1;">Logged in as: <strong id="agentIdText">Connecting...</strong></div>
+        <div class="card" id="idleCard">
+            <h2>System Idle</h2>
+            <p style="color: #94a3b8;">Waiting for customer to call...</p>
         </div>
 
-        <div class="content-area">
-            <div id="idleState" style="text-align: center;">
-                <h2 style="font-size: 24px; color: #f8fafc; margin-bottom: 8px;">Ready for Next Call</h2>
-                <p style="color: #94a3b8;">You are IDLE. The automated router will push waiting callers directly to you.</p>
-            </div>
-
-            <div id="activeCallState" class="call-card" style="display: none;">
-                <h2 style="font-size: 20px; color: #fff;">Incoming Customer Call</h2>
-                <div id="customerPhoneDisplay" style="font-size: 18px; color: #38bdf8; font-weight: 600;">Phone: --</div>
-                <div class="timer" id="callTimer">00:00</div>
-                <div class="btn-group">
-                    <button id="declineBtn" class="btn btn-yellow">Decline Call</button>
-                    <button id="endCallBtn" class="btn btn-red">End Call</button>
-                </div>
+        <div class="card" id="callCard" style="display: none;">
+            <h2>Incoming Customer Call</h2>
+            <div id="phoneDisplay" style="color: #38bdf8; font-size: 18px; font-weight: 600;">Phone: --</div>
+            <div class="timer" id="callTimer">00:00</div>
+            <div style="display: flex; gap: 12px;">
+                <button id="declineBtn" class="btn btn-yellow" style="flex: 1;">Decline</button>
+                <button id="endBtn" class="btn btn-red" style="flex: 1;">End Call</button>
             </div>
         </div>
     </div>
@@ -61,24 +50,16 @@
     <audio id="remoteAudio" autoplay></audio>
 
     <script>
-        const agentName = 'Agent-' + Math.floor(1000 + Math.random() * 9000);
-        document.getElementById('agentIdText').innerText = agentName;
-
+        const agentId = 'Agent-' + Math.floor(1000 + Math.random() * 9000);
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
 
         let pc = null;
-        let assignedCustomerSocketId = null;
         let timerInterval, seconds = 0;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-        const idleState = document.getElementById('idleState');
-        const activeCallState = document.getElementById('activeCallState');
-        const customerPhoneDisplay = document.getElementById('customerPhoneDisplay');
-        const callTimer = document.getElementById('callTimer');
-
         ws.onopen = () => {
-            ws.send(JSON.stringify({ type: 'REGISTER_AGENT', agentId: agentName }));
+            ws.send(JSON.stringify({ type: 'REGISTER_AGENT', agentId }));
         };
 
         ws.onmessage = async (event) => {
@@ -88,56 +69,48 @@
                 document.getElementById('statWaiting').innerText = data.waitingCount;
                 document.getElementById('statActiveAgents').innerText = data.activeAgents;
                 document.getElementById('statIdleAgents').innerText = data.idleAgents;
-            } 
-            else if (data.type === 'INCOMING_CALL') {
-                assignedCustomerSocketId = data.customerSocketId;
-                customerPhoneDisplay.innerText = `Phone: ${data.phoneNumber || 'Not Provided'}`;
-                
-                idleState.style.display = 'none';
-                activeCallState.style.display = 'flex';
-                document.getElementById('agentStatusDisplay').innerText = 'Status: ON CALL';
-                document.getElementById('agentStatusDisplay').style.color = '#ef4444';
-
-                // Initialize PeerConnection
-                pc = new RTCPeerConnection(rtcConfig);
-                
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-                pc.onicecandidate = (e) => {
-                    if (e.candidate) {
-                        ws.send(JSON.stringify({
-                            type: 'CANDIDATE',
-                            targetId: assignedCustomerSocketId,
-                            candidate: e.candidate
-                        }));
-                    }
-                };
-
-                pc.ontrack = (e) => {
-                    document.getElementById('remoteAudio').srcObject = e.streams[0];
-                };
-
-                startTimer();
             }
-            else if (data.type === 'OFFER') {
-                if (!pc) return;
+            else if (data.type === 'INCOMING_CALL') {
+                document.getElementById('phoneDisplay').innerText = `Phone: ${data.phoneNumber}`;
+                document.getElementById('idleCard').style.display = 'none';
+                document.getElementById('callCard').style.display = 'flex';
+                document.getElementById('statusText').innerText = 'On Call';
+                document.getElementById('statusText').style.color = '#ef4444';
+
+                setupWebRTC();
+            }
+            else if (data.type === 'offer') {
+                if (!pc) setupWebRTC();
                 await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                ws.send(JSON.stringify({
-                    type: 'ANSWER',
-                    targetId: assignedCustomerSocketId,
-                    answer: answer
-                }));
+                ws.send(JSON.stringify({ type: 'answer', answer }));
             }
-            else if (data.type === 'CANDIDATE' && pc) {
+            else if (data.type === 'candidate' && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
             else if (data.type === 'HANGUP') {
-                resetAgentState();
+                resetCall();
             }
         };
+
+        async function setupWebRTC() {
+            pc = new RTCPeerConnection(rtcConfig);
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            pc.onicecandidate = (e) => {
+                if (e.candidate) {
+                    ws.send(JSON.stringify({ type: 'candidate', candidate: e.candidate }));
+                }
+            };
+
+            pc.ontrack = (e) => {
+                document.getElementById('remoteAudio').srcObject = e.streams[0];
+            };
+
+            startTimer();
+        }
 
         function startTimer() {
             seconds = 0;
@@ -145,29 +118,28 @@
                 seconds++;
                 const m = String(Math.floor(seconds / 60)).padStart(2, '0');
                 const s = String(seconds % 60).padStart(2, '0');
-                callTimer.innerText = `${m}:${s}`;
+                document.getElementById('callTimer').innerText = `${m}:${s}`;
             }, 1000);
         }
 
-        function resetAgentState() {
+        function resetCall() {
             clearInterval(timerInterval);
             if (pc) pc.close();
             pc = null;
-            assignedCustomerSocketId = null;
-            activeCallState.style.display = 'none';
-            idleState.style.display = 'block';
-            document.getElementById('agentStatusDisplay').innerText = 'Status: IDLE';
-            document.getElementById('agentStatusDisplay').style.color = '#22c55e';
+            document.getElementById('callCard').style.display = 'none';
+            document.getElementById('idleCard').style.display = 'flex';
+            document.getElementById('statusText').innerText = 'Online & Ready';
+            document.getElementById('statusText').style.color = '#22c55e';
         }
 
         document.getElementById('declineBtn').onclick = () => {
-            ws.send(JSON.stringify({ type: 'DECLINE_CALL' }));
-            resetAgentState();
+            ws.send(JSON.stringify({ type: 'DECLINE' }));
+            resetCall();
         };
 
-        document.getElementById('endCallBtn').onclick = () => {
+        document.getElementById('endBtn').onclick = () => {
             ws.send(JSON.stringify({ type: 'HANGUP' }));
-            resetAgentState();
+            resetCall();
         };
     </script>
 </body>
