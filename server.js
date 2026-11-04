@@ -1,12 +1,12 @@
 const express = require('express');
-const http = http = require('http'); // fixed typo in standard import
+const http = require('http');
 const { WebSocketServer } = require('ws');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Serve static web pages from a folder named 'public' (or root if your HTML files are in the main directory)
+// Serve static web pages from the current directory
 app.use(express.static('.'));
 
 wss.on('connection', (ws, req) => {
