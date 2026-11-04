@@ -7,7 +7,7 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 // Serve static web pages from the current directory
-app.use(express.static('.'));
+app.use(express.static('public'));
 
 wss.on('connection', (ws, req) => {
     console.log('A user connected from IP:', req.socket.remoteAddress);
