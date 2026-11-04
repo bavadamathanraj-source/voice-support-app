@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -8,13 +9,14 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.static('public'));
 
-// Data Structures for MNC-Grade Call Center State
-const agents = new Map();     // ws -> { id, status: 'IDLE' | 'BUSY', currentCustomerWs }
-const customers = new Map();  // ws -> { id, phoneNumber, status: 'WAITING' | 'IN_CALL' }
-const waitingQueue = [];      // Array of customer ws objects waiting for an agent
+// Maps using String IDs instead of Raw Sockets
+const agents = new Map();     // socketId -> { id, agentName, status: 'IDLE'|'BUSY', currentCustomerSocketId, ws }
+const customers = new Map();  // socketId -> { id, phoneNumber, status: 'WAITING'|'IN_CALL', ws }
+const waitingQueue = [];      // Array of customer socketId strings
 
-wss.on('connection', (ws, req) => {
-    console.log('New connection established.');
+wss.on('connection', (ws) => {
+    const socketId = crypto.randomUUID();
+    ws.socketId = socketId;
 
     ws.on('message', (message) => {
         try {
@@ -22,133 +24,200 @@ wss.on('connection', (ws, req) => {
 
             switch (data.type) {
                 case 'REGISTER_AGENT':
-                    agents.set(ws, { id: data.agentId, status: 'IDLE', currentCustomerWs: null });
-                    console.log(`Agent registered: ${data.agentId} (Status: IDLE)`);
+                    agents.set(socketId, {
+                        id: socketId,
+                        agentName: data.agentId,
+                        status: 'IDLE',
+                        currentCustomerSocketId: null,
+                        ws: ws
+                    });
+                    console.log(`Agent registered: ${data.agentId} [ID: ${socketId}]`);
                     broadcastQueueStats();
+                    checkAndDispatchQueue();
                     break;
 
                 case 'REGISTER_CUSTOMER':
-                    customers.set(ws, { id: ws, phoneNumber: data.phoneNumber, status: 'WAITING' });
-                    attemptRouteCustomer(ws);
+                    customers.set(socketId, {
+                        id: socketId,
+                        phoneNumber: data.phoneNumber,
+                        status: 'WAITING',
+                        ws: ws
+                    });
+                    console.log(`Customer registered: ${data.phoneNumber} [ID: ${socketId}]`);
+                    attemptRouteCustomer(socketId);
                     break;
 
-                // WebRTC Signaling Forwarder (Scoped strictly between assigned pair)
+                // WebRTC Signaling Protocol (Forwarded directly via Target Socket IDs)
                 case 'OFFER':
                 case 'ANSWER':
                 case 'CANDIDATE':
-                    if (data.targetWsId) {
-                        // Forward directly to the specific paired peer
-                        wss.clients.forEach(client => {
-                            if (client === data.targetWsId && client.readyState === client.OPEN) {
-                                client.send(message);
-                            }
-                        });
+                    if (data.targetId) {
+                        const targetAgent = agents.get(data.targetId);
+                        const targetCustomer = customers.get(data.targetId);
+                        const targetWs = targetAgent ? targetAgent.ws : (targetCustomer ? targetCustomer.ws : null);
+
+                        if (targetWs && targetWs.readyState === ws.OPEN) {
+                            targetWs.send(JSON.stringify({
+                                ...data,
+                                senderId: socketId
+                            }));
+                        }
                     }
                     break;
 
-                case 'AGENT_TOGGLE_STATUS':
-                    const agent = agents.get(ws);
-                    if (agent && agent.status !== 'BUSY') {
-                        agent.status = data.status; // 'IDLE' or 'OFFLINE'
-                        console.log(`Agent ${agent.id} status changed to ${agent.status}`);
-                    }
+                case 'DECLINE_CALL':
+                    handleAgentDecline(socketId);
                     break;
 
                 case 'HANGUP':
-                    handleCallTermination(ws);
+                    handleCallTermination(socketId);
                     break;
             }
         } catch (err) {
-            console.error('Error handling message:', err);
+            console.error('Error parsing message:', err);
         }
     });
 
     ws.on('close', () => {
-        if (agents.has(ws)) {
-            console.log(`Agent disconnected: ${agents.get(ws).id}`);
-            agents.delete(ws);
-        } else if (customers.has(ws)) {
-            console.log('Customer disconnected.');
-            const queueIndex = waitingQueue.indexOf(ws);
+        if (agents.has(socketId)) {
+            agents.delete(socketId);
+        } else if (customers.has(socketId)) {
+            const queueIndex = waitingQueue.indexOf(socketId);
             if (queueIndex > -1) waitingQueue.splice(queueIndex, 1);
-            handleCallTermination(ws);
-            customers.delete(ws);
+            handleCallTermination(socketId);
+            customers.delete(socketId);
         }
         broadcastQueueStats();
+        updateQueuePositions();
     });
 });
 
-// Smart Routing Engine (FIFO + Availability Check)
-function attemptRouteCustomer(customerWs) {
-    // Find the first available IDLE agent
-    let availableAgentWs = null;
-    for (let [agentWs, agentData] of agents.entries()) {
-        if (agentData.status === 'IDLE') {
-            availableAgentWs = agentWs;
+// Routing Engine
+function attemptRouteCustomer(customerSocketId) {
+    const customer = customers.get(customerSocketId);
+    if (!customer || customer.status === 'IN_CALL') return;
+
+    // Find first free IDLE agent
+    let availableAgent = null;
+    for (let agent of agents.values()) {
+        if (agent.status === 'IDLE') {
+            availableAgent = agent;
             break;
         }
     }
 
-    if (availableAgentWs) {
-        // Route immediately
-        const agentData = agents.get(availableAgentWs);
-        agentData.status = 'BUSY';
-        agentData.currentCustomerWs = customerWs;
+    if (availableAgent) {
+        // Connect Agent & Customer
+        availableAgent.status = 'BUSY';
+        availableAgent.currentCustomerSocketId = customerSocketId;
+        customer.status = 'IN_CALL';
 
-        const customerData = customers.get(customerWs);
-        customerData.status = 'IN_CALL';
+        // Remove from queue if present
+        const qIdx = waitingQueue.indexOf(customerSocketId);
+        if (qIdx > -1) waitingQueue.splice(qIdx, 1);
 
-        // Notify Agent and Customer to connect via WebRTC
-        availableAgentWs.send(JSON.stringify({
+        // Notify both parties
+        availableAgent.ws.send(JSON.stringify({
             type: 'INCOMING_CALL',
-            customerWsId: customerWs,
-            phoneNumber: customerData.phoneNumber
+            customerSocketId: customerSocketId,
+            phoneNumber: customer.phoneNumber
         }));
 
-        customerWs.send(JSON.stringify({
+        customer.ws.send(JSON.stringify({
             type: 'CALL_CONNECTED',
-            agentId: agentData.id
+            agentSocketId: availableAgent.id,
+            agentName: availableAgent.agentName
         }));
 
-        console.log(`Routed customer (${customerData.phoneNumber}) to agent (${agentData.id})`);
+        console.log(`Routed Customer ${customer.phoneNumber} -> Agent ${availableAgent.agentName}`);
     } else {
-        // All agents busy -> Push to FIFO Queue
-        if (!waitingQueue.includes(customerWs)) {
-            waitingQueue.push(customerWs);
-            console.log(`All agents busy. Customer added to queue. Position: ${waitingQueue.length}`);
+        // Add to FIFO Queue if not already queued
+        if (!waitingQueue.includes(customerSocketId)) {
+            waitingQueue.push(customerSocketId);
         }
-        customerWs.send(JSON.stringify({
-            type: 'QUEUED',
-            position: waitingQueue.indexOf(customerWs) + 1
-        }));
+        updateQueuePositions();
     }
     broadcastQueueStats();
 }
 
-function handleCallTermination(ws) {
-    // Check if it was an agent ending the call
-    for (let [agentWs, agentData] of agents.entries()) {
-        if (agentWs === ws || agentData.currentCustomerWs === ws) {
-            const partnerWs = (agentWs === ws) ? agentData.currentCustomerWs : agentWs;
-            
-            // Free the agent
-            agentData.status = 'IDLE';
-            agentData.currentCustomerWs = null;
+function checkAndDispatchQueue() {
+    if (waitingQueue.length === 0) return;
+    const nextCustomerSocketId = waitingQueue[0];
+    attemptRouteCustomer(nextCustomerSocketId);
+}
 
-            if (partnerWs && partnerWs.readyState === partnerWs.OPEN) {
-                partnerWs.send(JSON.stringify({ type: 'HANGUP' }));
-            }
+function handleAgentDecline(agentSocketId) {
+    const agent = agents.get(agentSocketId);
+    if (!agent || !agent.currentCustomerSocketId) return;
 
-            console.log(`Call ended. Agent ${agentData.id} is now IDLE.`);
+    const customerSocketId = agent.currentCustomerSocketId;
+    const customer = customers.get(customerSocketId);
 
-            // Pull next customer from FIFO queue if any waiting
-            if (waitingQueue.length > 0) {
-                const nextCustomer = waitingQueue.shift();
-                attemptRouteCustomer(nextCustomer);
+    // Reset Agent back to IDLE
+    agent.status = 'IDLE';
+    agent.currentCustomerSocketId = null;
+
+    if (customer) {
+        customer.status = 'WAITING';
+        // Put customer back at front of queue
+        if (!waitingQueue.includes(customerSocketId)) {
+            waitingQueue.unshift(customerSocketId);
+        }
+        customer.ws.send(JSON.stringify({
+            type: 'CALL_DECLINED_REQUEUED',
+            message: 'Agent declined call. Re-queueing for next available agent...'
+        }));
+    }
+
+    broadcastQueueStats();
+    // Immediately check if another IDLE agent can take this customer
+    checkAndDispatchQueue();
+}
+
+function handleCallTermination(socketId) {
+    let partnerSocketId = null;
+
+    if (agents.has(socketId)) {
+        const agent = agents.get(socketId);
+        partnerSocketId = agent.currentCustomerSocketId;
+        agent.status = 'IDLE';
+        agent.currentCustomerSocketId = null;
+    } else if (customers.has(socketId)) {
+        for (let agent of agents.values()) {
+            if (agent.currentCustomerSocketId === socketId) {
+                partnerSocketId = agent.id;
+                agent.status = 'IDLE';
+                agent.currentCustomerSocketId = null;
+                break;
             }
         }
     }
+
+    if (partnerSocketId) {
+        const targetAgent = agents.get(partnerSocketId);
+        const targetCustomer = customers.get(partnerSocketId);
+        const partnerWs = targetAgent ? targetAgent.ws : (targetCustomer ? targetCustomer.ws : null);
+
+        if (partnerWs && partnerWs.readyState === 1) {
+            partnerWs.send(JSON.stringify({ type: 'HANGUP' }));
+        }
+    }
+
     broadcastQueueStats();
+    updateQueuePositions();
+    checkAndDispatchQueue();
+}
+
+function updateQueuePositions() {
+    waitingQueue.forEach((customerSocketId, index) => {
+        const customer = customers.get(customerSocketId);
+        if (customer && customer.ws.readyState === 1) {
+            customer.ws.send(JSON.stringify({
+                type: 'QUEUED',
+                position: index + 1
+            }));
+        }
+    });
 }
 
 function broadcastQueueStats() {
@@ -160,7 +229,7 @@ function broadcastQueueStats() {
     };
 
     wss.clients.forEach(client => {
-        if (client.readyState === client.OPEN) {
+        if (client.readyState === 1) {
             client.send(JSON.stringify(stats));
         }
     });
@@ -168,5 +237,5 @@ function broadcastQueueStats() {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Enterprise Call Center Signaling Server running on port ${PORT}`);
+    console.log(`Enterprise Call Center Engine listening on port ${PORT}`);
 });

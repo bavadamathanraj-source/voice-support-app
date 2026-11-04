@@ -2,230 +2,140 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Agent Widget Dashboard</title>
+    <title>Enterprise Agent Console</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #f8fafc; height: 100vh; position: relative; }
-
-        .support-widget {
-            position: fixed;
-            bottom: 24px;
-            left: 24px;
-            width: 420px;
-            height: 520px;
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
-            border: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .widget-header { background-color: #0f172a; color: #ffffff; padding: 24px 28px; position: relative; }
-        .widget-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-        .widget-header p { font-size: 14px; color: #94a3b8; }
-        .status-badge { display: inline-block; width: 10px; height: 10px; background: #22c55e; border-radius: 50%; margin-right: 6px; }
-
-        .widget-body { padding: 20px; flex: 1; background: #f8fafc; display: flex; flex-direction: column; overflow-y: auto; }
-        .incoming-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 16px; }
-        .incoming-card h4 { font-size: 18px; color: #0f172a; margin-bottom: 6px; }
-        .incoming-card p { font-size: 14px; color: #64748b; }
-
-        .btn-green { background: #16a34a; color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; flex: 1; }
-        .btn-green:hover { background: #15803d; }
-
-        .btn-red { background: #ef4444; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; flex: 1; }
-        .btn-red:hover { background: #dc2626; }
-
-        .active-box { display: none; text-align: center; flex-direction: column; justify-content: center; align-items: center; padding: 16px; background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
-        .timer { font-size: 32px; font-weight: 700; color: #0f172a; margin: 8px 0 16px 0; }
-        
-        .btn-group { display: flex; gap: 12px; width: 100%; margin-bottom: 12px; }
-        .control-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 14px; cursor: pointer; color: #334155; }
-        .control-btn.active { background: #ef4444; color: #fff; border-color: #ef4444; }
-
-        /* Tabs and View Sections */
-        .view-section { display: none; flex-direction: column; flex: 1; }
-        .view-section.active-view { display: flex; }
-
-        .log-header { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
-        .log-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 360px; }
-        .log-item { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-        .log-item .type { font-weight: 600; }
-        .log-item.completed .type { color: #16a34a; }
-        .log-item.declined .type { color: #ef4444; }
-        .log-item .time { color: #94a3b8; font-size: 12px; }
-
-        .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
-        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; font-weight: 500; cursor: pointer; }
-        .nav-item.active { color: #0f172a; }
-        .nav-icon { font-size: 18px; margin-bottom: 2px; }
+        body { background-color: #0f172a; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; }
+        .header { background: #1e293b; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        .header h1 { font-size: 20px; font-weight: 700; color: #fff; }
+        .stats-bar { display: flex; gap: 24px; background: #1e293b; padding: 12px 32px; border-bottom: 1px solid #334155; font-size: 14px; }
+        .stat-badge { background: #334155; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+        .main-container { flex: 1; display: grid; grid-template-columns: 300px 1fr; padding: 24px; gap: 24px; }
+        .sidebar { background: #1e293b; border-radius: 16px; padding: 20px; border: 1px solid #334155; }
+        .content-area { background: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .call-card { width: 100%; max-width: 480px; background: #0f172a; padding: 32px; border-radius: 14px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 16px; text-align: center; }
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; flex: 1; }
+        .btn-red { background: #ef4444; color: #fff; }
+        .btn-yellow { background: #eab308; color: #000; }
+        .timer { font-size: 36px; font-weight: 700; color: #22c55e; margin: 10px 0; }
+        .btn-group { display: flex; gap: 12px; }
     </style>
 </head>
 <body>
 
-    <audio id="remoteAudio" autoplay></audio>
+    <div class="header">
+        <h1>🎧 Enterprise Call Center — Agent Console</h1>
+        <div id="agentStatusDisplay" style="font-weight: 600; color: #22c55e;">Status: IDLE</div>
+    </div>
 
-    <div class="support-widget">
-        <div class="widget-header">
-            <h2><span class="status-badge"></span>Agent Dashboard</h2>
-            <p id="headerSub">Ready for customer calls</p>
+    <div class="stats-bar">
+        <div>Customers Waiting: <span id="statWaiting" class="stat-badge">0</span></div>
+        <div>Active Agents: <span id="statActiveAgents" class="stat-badge">0</span></div>
+        <div>Idle Agents: <span id="statIdleAgents" class="stat-badge">0</span></div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <h3 style="color: #94a3b8; font-size: 14px; margin-bottom: 8px;">CONSOLE SESSION</h3>
+            <div style="font-size: 14px; color: #cbd5e1;">Logged in as: <strong id="agentIdText">Connecting...</strong></div>
         </div>
 
-        <div class="widget-body">
-            <!-- Calls View (Default) -->
-            <div id="callsView" class="view-section active-view">
-                <div id="incomingState" class="incoming-card">
-                    <h4>System Idle</h4>
-                    <p id="callStatusText">Waiting for customer to call...</p>
-                    <div id="answerSection" style="display: none; gap: 10px; margin-top: 16px;">
-                        <button id="answerBtn" class="btn-green">Answer</button>
-                        <button id="declineBtn" class="btn-red">Decline</button>
-                    </div>
-                </div>
-
-                <div id="activeState" class="active-box">
-                    <p style="font-size: 14px; font-weight: 600; color: #16a34a;">● Live Voice Call</p>
-                    <div class="timer" id="callTimer">00:00</div>
-                    <div class="btn-group">
-                        <button id="muteBtn" class="control-btn">Mute</button>
-                        <button id="holdBtn" class="control-btn">Hold</button>
-                    </div>
-                    <button id="agentEndBtn" class="btn-red" style="width: 100%;">End Call</button>
-                </div>
+        <div class="content-area">
+            <div id="idleState" style="text-align: center;">
+                <h2 style="font-size: 24px; color: #f8fafc; margin-bottom: 8px;">Ready for Next Call</h2>
+                <p style="color: #94a3b8;">You are IDLE. The automated router will push waiting callers directly to you.</p>
             </div>
 
-            <!-- Stats View (Call History) -->
-            <div id="statsView" class="view-section">
-                <div class="log-header">Recent Call History</div>
-                <div class="log-list" id="logList">
-                    <div class="log-item" style="color: #94a3b8; justify-content: center;" id="emptyLog">No recent calls</div>
+            <div id="activeCallState" class="call-card" style="display: none;">
+                <h2 style="font-size: 20px; color: #fff;">Incoming Customer Call</h2>
+                <div id="customerPhoneDisplay" style="font-size: 18px; color: #38bdf8; font-weight: 600;">Phone: --</div>
+                <div class="timer" id="callTimer">00:00</div>
+                <div class="btn-group">
+                    <button id="declineBtn" class="btn btn-yellow">Decline Call</button>
+                    <button id="endCallBtn" class="btn btn-red">End Call</button>
                 </div>
             </div>
-        </div>
-
-        <div class="widget-nav">
-            <div class="nav-item active" id="navCalls"><div class="nav-icon">📞</div>Calls</div>
-            <div class="nav-item" id="navStats"><div class="nav-icon">📊</div>Stats</div>
-            <div class="nav-item" id="navSettings"><div class="nav-icon">⚙️</div>Settings</div>
         </div>
     </div>
 
+    <audio id="remoteAudio" autoplay></audio>
+
     <script>
+        const agentName = 'Agent-' + Math.floor(1000 + Math.random() * 9000);
+        document.getElementById('agentIdText').innerText = agentName;
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
-        const headerSub = document.getElementById('headerSub');
-        const callStatusText = document.getElementById('callStatusText');
-        const answerSection = document.getElementById('answerSection');
-        const incomingState = document.getElementById('incomingState');
-        const activeState = document.getElementById('activeState');
-        const callTimer = document.getElementById('callTimer');
-        const muteBtn = document.getElementById('muteBtn');
-        const holdBtn = document.getElementById('holdBtn');
-        const logList = document.getElementById('logList');
 
-        // Navigation elements
-        const navCalls = document.getElementById('navCalls');
-        const navStats = document.getElementById('navStats');
-        const callsView = document.getElementById('callsView');
-        const statsView = document.getElementById('statsView');
-
-        let pc, customerOffer, timerInterval, seconds = 0;
-        let isMuted = false, isOnHold = false, ringInterval = null;
+        let pc = null;
+        let assignedCustomerSocketId = null;
+        let timerInterval, seconds = 0;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-        // Load logs from localStorage on startup
-        let callLogs = JSON.parse(localStorage.getItem('agent_call_logs')) || [];
-        renderLogs();
+        const idleState = document.getElementById('idleState');
+        const activeCallState = document.getElementById('activeCallState');
+        const customerPhoneDisplay = document.getElementById('customerPhoneDisplay');
+        const callTimer = document.getElementById('callTimer');
 
-        function renderLogs() {
-            logList.innerHTML = '';
-            if (callLogs.length === 0) {
-                logList.innerHTML = `<div class="log-item" style="color: #94a3b8; justify-content: center;" id="emptyLog">No recent calls</div>`;
-                return;
-            }
-
-            callLogs.forEach(log => {
-                const item = document.createElement('div');
-                item.className = `log-item ${log.status.toLowerCase()}`;
-                const isCompleted = log.status === 'Completed';
-                const label = isCompleted ? `Completed (${log.duration})` : 'Declined / Missed';
-                
-                item.innerHTML = `
-                    <span class="type">${isCompleted ? '✓' : '✕'} ${label}</span>
-                    <span class="time">${log.time}</span>
-                `;
-                logList.appendChild(item);
-            });
-        }
-
-        function addCallLog(status, duration = '') {
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            callLogs.unshift({ status, duration, time: timeStr }); // Add to beginning of array
-            localStorage.setItem('agent_call_logs', JSON.stringify(callLogs)); // Save to browser storage
-            renderLogs();
-        }
-
-        // Tab Switching Logic
-        navCalls.onclick = () => {
-            navCalls.classList.add('active');
-            navStats.classList.remove('active');
-            callsView.classList.add('active-view');
-            statsView.classList.remove('active-view');
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ type: 'REGISTER_AGENT', agentId: agentName }));
         };
-
-        navStats.onclick = () => {
-            navStats.classList.add('active');
-            navCalls.classList.remove('active');
-            statsView.classList.add('active-view');
-            callsView.classList.remove('active-view');
-        };
-
-        function playRingSound() {
-            if (ringInterval) return;
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            ringInterval = setInterval(() => {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-                osc.frequency.setValueAtTime(480, audioCtx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.4);
-            }, 1000);
-        }
-
-        function stopRingSound() {
-            if (ringInterval) {
-                clearInterval(ringInterval);
-                ringInterval = null;
-            }
-        }
-
-        ws.onopen = () => { headerSub.innerText = 'Online & Ready'; };
 
         ws.onmessage = async (event) => {
             const data = JSON.parse(event.data);
-            if (data.type === 'offer') {
-                customerOffer = data.offer;
-                headerSub.innerText = '🔔 Incoming Call!';
-                callStatusText.innerText = 'Customer is calling you...';
-                answerSection.style.display = 'flex';
-                playRingSound();
-            } else if (data.type === 'hangup') {
-                const finalDuration = callTimer.innerText;
-                resetAgentState();
-                if (seconds > 0) {
-                    addCallLog('Completed', finalDuration);
-                }
-            } else if (data.candidate && pc) {
+
+            if (data.type === 'QUEUE_STATS') {
+                document.getElementById('statWaiting').innerText = data.waitingCount;
+                document.getElementById('statActiveAgents').innerText = data.activeAgents;
+                document.getElementById('statIdleAgents').innerText = data.idleAgents;
+            } 
+            else if (data.type === 'INCOMING_CALL') {
+                assignedCustomerSocketId = data.customerSocketId;
+                customerPhoneDisplay.innerText = `Phone: ${data.phoneNumber || 'Not Provided'}`;
+                
+                idleState.style.display = 'none';
+                activeCallState.style.display = 'flex';
+                document.getElementById('agentStatusDisplay').innerText = 'Status: ON CALL';
+                document.getElementById('agentStatusDisplay').style.color = '#ef4444';
+
+                // Initialize PeerConnection
+                pc = new RTCPeerConnection(rtcConfig);
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+                pc.onicecandidate = (e) => {
+                    if (e.candidate) {
+                        ws.send(JSON.stringify({
+                            type: 'CANDIDATE',
+                            targetId: assignedCustomerSocketId,
+                            candidate: e.candidate
+                        }));
+                    }
+                };
+
+                pc.ontrack = (e) => {
+                    document.getElementById('remoteAudio').srcObject = e.streams[0];
+                };
+
+                startTimer();
+            }
+            else if (data.type === 'OFFER') {
+                if (!pc) return;
+                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                ws.send(JSON.stringify({
+                    type: 'ANSWER',
+                    targetId: assignedCustomerSocketId,
+                    answer: answer
+                }));
+            }
+            else if (data.type === 'CANDIDATE' && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+            else if (data.type === 'HANGUP') {
+                resetAgentState();
             }
         };
 
@@ -240,70 +150,23 @@
         }
 
         function resetAgentState() {
-            stopRingSound();
             clearInterval(timerInterval);
             if (pc) pc.close();
             pc = null;
-            incomingState.style.display = 'block';
-            activeState.style.display = 'none';
-            answerSection.style.display = 'none';
-            headerSub.innerText = 'Online & Ready';
-            callStatusText.innerText = 'Waiting for customer to call...';
+            assignedCustomerSocketId = null;
+            activeCallState.style.display = 'none';
+            idleState.style.display = 'block';
+            document.getElementById('agentStatusDisplay').innerText = 'Status: IDLE';
+            document.getElementById('agentStatusDisplay').style.color = '#22c55e';
         }
 
-        document.getElementById('answerBtn').onclick = async () => {
-            stopRingSound();
-            incomingState.style.display = 'none';
-            activeState.style.display = 'flex';
-            headerSub.innerText = '📞 Call in Progress';
-            startTimer();
-
-            pc = new RTCPeerConnection(rtcConfig);
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) ws.send(JSON.stringify({ candidate: event.candidate }));
-            };
-
-            pc.ontrack = (event) => {
-                document.getElementById('remoteAudio').srcObject = event.streams[0];
-            };
-
-            await pc.setRemoteDescription(new RTCSessionDescription(customerOffer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify({ type: 'answer', answer }));
-        };
-
         document.getElementById('declineBtn').onclick = () => {
-            ws.send(JSON.stringify({ type: 'call-declined' }));
-            addCallLog('Declined');
+            ws.send(JSON.stringify({ type: 'DECLINE_CALL' }));
             resetAgentState();
         };
 
-        muteBtn.onclick = () => {
-            if (!pc) return;
-            isMuted = !isMuted;
-            pc.getSenders().forEach(sender => {
-                if (sender.track) sender.track.enabled = !isMuted;
-            });
-            muteBtn.innerText = isMuted ? 'Unmute' : 'Mute';
-            muteBtn.classList.toggle('active', isMuted);
-        };
-
-        holdBtn.onclick = () => {
-            const remoteAudio = document.getElementById('remoteAudio');
-            isOnHold = !isOnHold;
-            remoteAudio.muted = isOnHold;
-            holdBtn.innerText = isOnHold ? 'Resume' : 'Hold';
-            holdBtn.classList.toggle('active', isOnHold);
-        };
-
-        document.getElementById('agentEndBtn').onclick = () => {
-            const finalDuration = callTimer.innerText;
-            ws.send(JSON.stringify({ type: 'hangup' }));
-            addCallLog('Completed', finalDuration);
+        document.getElementById('endCallBtn').onclick = () => {
+            ws.send(JSON.stringify({ type: 'HANGUP' }));
             resetAgentState();
         };
     </script>

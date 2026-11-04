@@ -5,96 +5,45 @@
     <title>Customer Support Widget</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #f8fafc; height: 100vh; position: relative; }
-
-        .support-widget {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            width: 420px;
-            height: 540px;
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
-            border: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .widget-header { background-color: #0f172a; color: #ffffff; padding: 28px; position: relative; }
-        .widget-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-        .widget-header p { font-size: 15px; color: #94a3b8; }
-        .close-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-
+        body { background-color: #f8fafc; height: 100vh; }
+        .support-widget { position: fixed; bottom: 24px; right: 24px; width: 400px; height: 520px; background: #fff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
+        .widget-header { background-color: #0f172a; color: #fff; padding: 24px; }
         .widget-body { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; }
-        
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-group label { font-size: 14px; font-weight: 600; color: #334155; }
-        .phone-input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #fff; }
-        .phone-input:focus { border-color: #0f172a; }
-
-        .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
-        .option-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .option-content h4 { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
-        .option-content p { font-size: 14px; color: #64748b; }
-        .icon-circle { width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0f172a; }
-
+        .phone-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; }
+        .option-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
         .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .timer { font-size: 36px; font-weight: 700; color: #16a34a; margin: 16px 0; }
-        
-        .control-btn { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-weight: 600; font-size: 14px; cursor: pointer; color: #334155; }
-        .control-btn.active { background: #ef4444; color: #fff; border-color: #ef4444; }
-
-        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 12px; }
-        .btn-red:hover { background: #dc2626; }
-
-        .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
-        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; cursor: pointer; font-weight: 500; }
-        .nav-item.active { color: #0f172a; }
-        .nav-icon { font-size: 18px; margin-bottom: 2px; }
+        .timer { font-size: 36px; font-weight: 700; color: #22c55e; margin: 12px 0; }
+        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="support-widget">
         <div class="widget-header">
-            <button class="close-btn">×</button>
-            <h2 id="widgetTitle">Hi there 👋</h2>
-            <p id="widgetSub">How can we help?</p>
+            <h2>Support Center</h2>
+            <p style="color: #94a3b8; font-size: 14px;">Instant Live Voice Channel</p>
         </div>
 
         <div class="widget-body" id="defaultView">
-            <div class="form-group">
-                <label for="customerPhone">Your Phone Number</label>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 14px; font-weight: 600; color: #334155;">Your Phone Number</label>
                 <input type="tel" id="customerPhone" class="phone-input" placeholder="+971 50 123 4567" />
             </div>
 
             <div class="option-card" id="callBtn">
-                <div class="option-content">
-                    <h4>Talk to us</h4>
-                    <p>Start a live voice call with support</p>
+                <div>
+                    <h4 style="color: #0f172a;">Call Support Now</h4>
+                    <p style="font-size: 13px; color: #64748b;">Connect directly to an agent</p>
                 </div>
-                <div class="icon-circle">📞</div>
+                <div style="font-size: 20px;">📞</div>
             </div>
         </div>
 
         <div class="active-call-box" id="callView">
-            <h3 id="status" style="font-size: 18px; color: #0f172a;">Connecting to Agent...</h3>
+            <h3 id="status" style="font-size: 16px; color: #0f172a;">Initiating Call...</h3>
             <p id="displayPhone" style="font-size: 14px; color: #64748b; margin-top: 4px;"></p>
             <div class="timer" id="callTimer" style="display: none;">00:00</div>
-            
-            <div id="customerControls" style="display: none; gap: 12px; width: 100%;">
-                <button id="customerMuteBtn" class="control-btn">Mute</button>
-            </div>
-            
-            <button id="endCallBtn" class="btn-red">End Call</button>
-        </div>
-
-        <div class="widget-nav">
-            <div class="nav-item active"><div class="nav-icon">🏠</div>Home</div>
-            <div class="nav-item"><div class="nav-icon">💬</div>Messages</div>
-            <div class="nav-item"><div class="nav-icon">🎫</div>Tickets</div>
+            <button id="endCallBtn" class="btn-red" style="margin-top: 20px;">End Call</button>
         </div>
     </div>
 
@@ -103,21 +52,17 @@
     <script>
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
-        
+
         const statusEl = document.getElementById('status');
         const defaultView = document.getElementById('defaultView');
         const callView = document.getElementById('callView');
-        const widgetTitle = document.getElementById('widgetTitle');
-        const widgetSub = document.getElementById('widgetSub');
         const callTimer = document.getElementById('callTimer');
-        const customerMuteBtn = document.getElementById('customerMuteBtn');
-        const customerControls = document.getElementById('customerControls');
         const customerPhoneInput = document.getElementById('customerPhone');
         const displayPhone = document.getElementById('displayPhone');
-        
-        let pc, timerInterval, seconds = 0;
-        let isCustomerMuted = false;
-        let assignedAgentId = null;
+
+        let pc = null;
+        let assignedAgentSocketId = null;
+        let timerInterval, seconds = 0;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         ws.onmessage = async (event) => {
@@ -125,32 +70,43 @@
 
             if (data.type === 'QUEUED') {
                 statusEl.innerText = `All agents busy. You are in queue (Position: ${data.position})`;
-            } 
+            }
+            else if (data.type === 'CALL_DECLINED_REQUEUED') {
+                statusEl.innerText = data.message;
+            }
             else if (data.type === 'CALL_CONNECTED') {
-                assignedAgentId = data.agentId;
-                statusEl.innerText = `Connected with Agent (${assignedAgentId})!`;
+                assignedAgentSocketId = data.agentSocketId;
+                statusEl.innerText = `Connected to ${data.agentName}!`;
                 callTimer.style.display = 'block';
-                customerControls.style.display = 'flex';
                 startTimer();
 
-                // Now that an agent is assigned and ready, create WebRTC offer
+                // Setup WebRTC connection
                 pc = new RTCPeerConnection(rtcConfig);
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-                pc.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        ws.send(JSON.stringify({ type: 'CANDIDATE', targetWsId: ws, candidate: event.candidate }));
+                pc.onicecandidate = (e) => {
+                    if (e.candidate) {
+                        ws.send(JSON.stringify({
+                            type: 'CANDIDATE',
+                            targetId: assignedAgentSocketId,
+                            candidate: e.candidate
+                        }));
                     }
                 };
 
-                pc.ontrack = (event) => {
-                    document.getElementById('remoteAudio').srcObject = event.streams[0];
+                pc.ontrack = (e) => {
+                    document.getElementById('remoteAudio').srcObject = e.streams[0];
                 };
 
+                // Create Offer specifically for assigned Agent
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
-                ws.send(JSON.stringify({ type: 'OFFER', targetWsId: ws, offer }));
+                ws.send(JSON.stringify({
+                    type: 'OFFER',
+                    targetId: assignedAgentSocketId,
+                    offer: offer
+                }));
             }
             else if (data.type === 'ANSWER') {
                 if (!pc) return;
@@ -178,47 +134,26 @@
             clearInterval(timerInterval);
             if (pc) pc.close();
             pc = null;
-            isCustomerMuted = false;
             callTimer.style.display = 'none';
-            customerMuteBtn.innerText = 'Mute';
-            customerMuteBtn.classList.remove('active');
-            customerControls.style.display = 'none';
             defaultView.style.display = 'flex';
             callView.style.display = 'none';
-            widgetTitle.innerText = 'Hi there 👋';
-            widgetSub.innerText = 'How can we help?';
             displayPhone.innerText = '';
         }
 
-        document.getElementById('callBtn').onclick = async () => {
+        document.getElementById('callBtn').onclick = () => {
             const phoneNumber = customerPhoneInput.value.trim();
             if (!phoneNumber) {
-                alert('Please enter your phone number before starting the call.');
+                alert('Please enter your phone number first.');
                 customerPhoneInput.focus();
                 return;
             }
 
             defaultView.style.display = 'none';
             callView.style.display = 'flex';
-            widgetTitle.innerText = 'Live Voice Call';
-            widgetSub.innerText = 'Smart Queue Routing';
-            displayPhone.innerText = `Phone: ${phoneNumber}`;
-            statusEl.innerText = 'Connecting to queue...';
+            displayPhone.innerText = `Calling from: ${phoneNumber}`;
+            statusEl.innerText = 'Routing call...';
 
-            // Register customer with the server to trigger smart routing/queueing
             ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
-        };
-
-        customerMuteBtn.onclick = () => {
-            if (!pc) return;
-            isCustomerMuted = !isCustomerMuted;
-            pc.getSenders().forEach(sender => {
-                if (sender.track && sender.track.kind === 'audio') {
-                    sender.track.enabled = !isCustomerMuted;
-                }
-            });
-            customerMuteBtn.innerText = isCustomerMuted ? 'Unmute' : 'Mute';
-            customerMuteBtn.classList.toggle('active', isCustomerMuted);
         };
 
         document.getElementById('endCallBtn').onclick = () => {
