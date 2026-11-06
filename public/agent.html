@@ -5,109 +5,105 @@
     <title>Agent Dashboard</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #f1f5f9; color: #0f172a; height: 100vh; position: relative; }
+        body { background-color: #f8fafc; height: 100vh; position: relative; }
 
         .dashboard-container {
             position: fixed;
             bottom: 24px;
             left: 24px;
             width: 420px;
-            height: 600px;
+            height: 540px;
             background: #ffffff;
-            border-radius: 24px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
             border: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        .header { background: #0f172a; color: #ffffff; padding: 24px; display: flex; flex-direction: column; gap: 4px; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; }
-        .header h2 { font-size: 20px; font-weight: 700; }
-        .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #94a3b8; margin-top: 6px; }
-        .status-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
-
-        .content-body { flex: 1; padding: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f8fafc; text-align: center; position: relative; }
+        .widget-header { background-color: #0f172a; color: #ffffff; padding: 24px 28px; position: relative; }
+        .widget-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+        .widget-header p { font-size: 14px; color: #94a3b8; }
         
-        .agent-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; width: 100%; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-        .agent-card h3 { font-size: 18px; font-weight: 600; color: #0f172a; }
+        .widget-body { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 14px; background: #f8fafc; overflow-y: auto; }
+        
+        .agent-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .agent-card h3 { font-size: 17px; font-weight: 600; color: #0f172a; }
         .agent-card p { font-size: 14px; color: #64748b; }
 
-        .timer { font-size: 32px; font-weight: 700; color: #22c55e; margin: 4px 0; }
+        .timer { font-size: 32px; font-weight: 700; color: #16a34a; margin: 6px 0; text-align: center; }
 
-        .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
-        .btn-red { background: #ef4444; color: #fff; }
-        .btn-yellow { background: #eab308; color: #000; }
-        .btn-gray { background: #cbd5e1; color: #0f172a; }
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .btn-green { background: #22c55e; color: #fff; flex: 1; }
+        .btn-red { background: #ef4444; color: #fff; width: 100%; }
+        .btn-yellow { background: #eab308; color: #000; flex: 1; }
+        .btn-gray { background: #cbd5e1; color: #0f172a; flex: 1; }
         .btn-gray.active { background: #475569; color: #fff; }
-        .btn-group { display: flex; gap: 8px; }
+        .btn-group { display: flex; gap: 8px; width: 100%; }
 
-        .nav-bar { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
-        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; cursor: pointer; font-weight: 500; }
+        .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; cursor: pointer; }
+        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; font-weight: 500; }
         .nav-item.active { color: #0f172a; }
         .nav-icon { font-size: 18px; margin-bottom: 2px; }
 
-        /* Stats Modal Overlay */
-        .stats-modal { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); display: none; flex-direction: column; justify-content: center; align-items: center; color: #fff; padding: 32px; z-index: 10; text-align: left; }
-        .stats-box { width: 100%; background: #1e293b; border-radius: 14px; padding: 20px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 12px; }
-        .stat-row { display: flex; justify-content: space-between; font-size: 15px; }
+        .stat-row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #334155; }
     </style>
 </head>
 <body>
 
     <div class="dashboard-container">
-        <div class="header">
-            <div class="header-top">
-                <h2>Agent Dashboard</h2>
-                <span id="agentIdBadge" style="font-size: 12px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 6px;">Connecting...</span>
-            </div>
-            <div class="status-indicator">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Online & Ready</span>
-            </div>
+        <div class="widget-header">
+            <h2 id="widgetTitle">Agent Dashboard</h2>
+            <p id="widgetSub">Status: Online & Ready</p>
         </div>
 
-        <div class="content-body">
-            <!-- Stats Modal Overlay -->
-            <div class="stats-modal" id="statsModal">
-                <h3 style="margin-bottom: 16px; font-size: 20px;">Live Center Statistics</h3>
-                <div class="stats-box">
+        <div class="widget-body" id="mainContentArea">
+            <!-- Default / Idle View -->
+            <div class="agent-card" id="idleCard">
+                <h3>System Idle</h3>
+                <p>Waiting for customer to call...</p>
+                <div style="margin-top: 6px; font-size: 13px; color: #64748b;">
+                    Waiting in Queue: <span id="statWaiting" style="font-weight: bold; color: #0f172a;">0</span> | 
+                    Idle Agents: <span id="statIdleAgents" style="font-weight: bold; color: #22c55e;">1</span>
+                </div>
+            </div>
+
+            <!-- Stats View (Toggled via footer navigation) -->
+            <div class="agent-card" id="statsCard" style="display: none;">
+                <h3>Live Center Statistics</h3>
+                <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
                     <div class="stat-row"><span>Waiting Customers:</span> <strong id="modalWaiting">0</strong></div>
                     <div class="stat-row"><span>Active Agents:</span> <strong id="modalActive">0</strong></div>
                     <div class="stat-row"><span>Idle Agents:</span> <strong id="modalIdle">1</strong></div>
                     <div class="stat-row"><span>Total Agents:</span> <strong id="modalTotal">1</strong></div>
                 </div>
-                <button id="closeStatsBtn" class="btn btn-gray" style="margin-top: 20px;">Close Stats</button>
             </div>
 
-            <!-- Idle View -->
-            <div class="agent-card" id="idleCard">
-                <h3>System Idle</h3>
-                <p>Waiting for customer to call...</p>
-                <div style="margin-top: 6px; font-size: 13px; color: #94a3b8;">
-                    Waiting: <span id="statWaiting" style="font-weight: bold; color: #0f172a;">0</span> | 
-                    Idle Agents: <span id="statIdleAgents" style="font-weight: bold; color: #22c55e;">1</span>
+            <!-- Incoming Ringing Call View -->
+            <div class="agent-card" id="ringingCard" style="display: none; text-align: center;">
+                <h3 style="color: #0284c7;">Incoming Customer Call</h3>
+                <p id="phoneDisplay" style="font-weight: 600; color: #0f172a;">Phone: --</p>
+                <div class="btn-group" style="margin-top: 10px;">
+                    <button id="declineCallBtn" class="btn btn-yellow">Decline</button>
+                    <button id="answerCallBtn" class="btn btn-green">Answer</button>
                 </div>
             </div>
 
-            <!-- Active Call View -->
-            <div class="agent-card" id="callCard" style="display: none;">
-                <h3>Incoming Call</h3>
-                <p id="phoneDisplay" style="color: #0284c7; font-weight: 600;">Phone: --</p>
+            <!-- Active Connected Call View -->
+            <div class="agent-card" id="callCard" style="display: none; text-align: center;">
+                <h3>Active Call</h3>
+                <p id="activePhoneDisplay" style="color: #64748b; font-size: 13px;"></p>
                 <div class="timer" id="callTimer">00:00</div>
                 <div class="btn-group">
                     <button id="muteBtn" class="btn btn-gray">Mute</button>
                     <button id="holdBtn" class="btn btn-gray">Hold</button>
                 </div>
-                <div class="btn-group">
-                    <button id="declineBtn" class="btn btn-yellow">Decline</button>
-                    <button id="endBtn" class="btn btn-red">End Call</button>
-                </div>
+                <button id="endBtn" class="btn btn-red" style="margin-top: 4px;">End Call</button>
             </div>
         </div>
 
-        <div class="nav-bar">
+        <div class="widget-nav">
             <div class="nav-item active" id="navCalls"><div class="nav-icon">📞</div>Calls</div>
             <div class="nav-item" id="navStats"><div class="nav-icon">📊</div>Stats</div>
             <div class="nav-item" id="navSettings"><div class="nav-icon">⚙️</div>Settings</div>
@@ -118,8 +114,6 @@
 
     <script>
         const agentId = 'Agent-' + Math.floor(1000 + Math.random() * 9000);
-        document.getElementById('agentIdBadge').innerText = agentId;
-
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
 
@@ -128,6 +122,7 @@
         let timerInterval, seconds = 0;
         let isMuted = false;
         let isOnHold = false;
+        let pendingCustomerData = null;
         const rtcConfig = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
 
         ws.onopen = () => {
@@ -146,13 +141,13 @@
                 document.getElementById('modalTotal').innerText = data.totalAgents;
             }
             else if (data.type === 'INCOMING_CALL') {
+                pendingCustomerData = data;
                 document.getElementById('phoneDisplay').innerText = `Phone: ${data.phoneNumber}`;
                 document.getElementById('idleCard').style.display = 'none';
-                document.getElementById('callCard').style.display = 'flex';
-                document.getElementById('statusText').innerText = 'On Call';
-                document.getElementById('statusDot').style.background = '#ef4444';
-
-                await setupWebRTC();
+                document.getElementById('statsCard').style.display = 'none';
+                document.getElementById('ringingCard').style.display = 'flex';
+                document.getElementById('widgetSub').innerText = 'Incoming Ringing...';
+                document.getElementById('widgetSub').style.color = '#eab308';
             }
             else if (data.type === 'offer') {
                 if (!pc) await setupWebRTC();
@@ -164,12 +159,31 @@
             else if (data.type === 'candidate' && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
-            else if (data.type === 'HANGUP') {
+            else if (data.type === 'HANGUP' || data.type === 'CUSTOMER_DECLINED') {
                 resetCall();
             }
         };
 
+        // Explicit Answer Button Handler
+        document.getElementById('answerCallBtn').onclick = async () => {
+            document.getElementById('ringingCard').style.display = 'none';
+            document.getElementById('callCard').style.display = 'flex';
+            document.getElementById('activePhoneDisplay').innerText = document.getElementById('phoneDisplay').innerText;
+            document.getElementById('widgetSub').innerText = 'Status: On Call';
+            document.getElementById('widgetSub').style.color = '#ef4444';
+
+            await setupWebRTC();
+            startTimer();
+        };
+
+        // Explicit Decline Button Handler (Loops customer back to queue)
+        document.getElementById('declineCallBtn').onclick = () => {
+            ws.send(JSON.stringify({ type: 'DECLINE' }));
+            resetCall();
+        };
+
         async function setupWebRTC() {
+            if (pc) return;
             pc = new RTCPeerConnection(rtcConfig);
             
             try {
@@ -188,10 +202,8 @@
             pc.ontrack = (e) => {
                 const audio = document.getElementById('remoteAudio');
                 audio.srcObject = e.streams[0];
-                audio.play().catch(err => console.log('Audio autoplay unblocked:', err));
+                audio.play().catch(err => console.log('Audio autoplay unblocked'));
             };
-
-            startTimer();
         }
 
         function startTimer() {
@@ -214,17 +226,24 @@
             if (pc) { pc.close(); pc = null; }
             isMuted = false;
             isOnHold = false;
+            pendingCustomerData = null;
+
             document.getElementById('muteBtn').classList.remove('active');
             document.getElementById('muteBtn').innerText = 'Mute';
             document.getElementById('holdBtn').classList.remove('active');
             document.getElementById('holdBtn').innerText = 'Hold';
+
+            document.getElementById('ringingCard').style.display = 'none';
             document.getElementById('callCard').style.display = 'none';
+            document.getElementById('statsCard').style.display = 'none';
             document.getElementById('idleCard').style.display = 'flex';
-            document.getElementById('statusText').innerText = 'Online & Ready';
-            document.getElementById('statusDot').style.background = '#22c55e';
+            
+            document.getElementById('widgetTitle').innerText = 'Agent Dashboard';
+            document.getElementById('widgetSub').innerText = 'Status: Online & Ready';
+            document.getElementById('widgetSub').style.color = '#94a3b8';
         }
 
-        // Mute button logic
+        // Mute button
         document.getElementById('muteBtn').onclick = () => {
             if (!localStream) return;
             isMuted = !isMuted;
@@ -234,7 +253,7 @@
             btn.innerText = isMuted ? 'Unmute' : 'Mute';
         };
 
-        // Hold button logic
+        // Hold button
         document.getElementById('holdBtn').onclick = () => {
             if (!localStream) return;
             isOnHold = !isOnHold;
@@ -244,22 +263,28 @@
             btn.innerText = isOnHold ? 'Resume' : 'Hold';
         };
 
-        document.getElementById('declineBtn').onclick = () => {
-            ws.send(JSON.stringify({ type: 'DECLINE' }));
-            resetCall();
-        };
-
         document.getElementById('endBtn').onclick = () => {
             ws.send(JSON.stringify({ type: 'HANGUP' }));
             resetCall();
         };
 
-        // Stats Footer Tab Interaction
-        document.getElementById('navStats').onclick = () => {
-            document.getElementById('statsModal').style.display = 'flex';
+        // Footer Navigation Tabs
+        document.getElementById('navCalls').onclick = () => {
+            document.getElementById('navCalls').classList.add('active');
+            document.getElementById('navStats').classList.remove('active');
+            document.getElementById('statsCard').style.display = 'none';
+            if (document.getElementById('ringingCard').style.display !== 'flex' && document.getElementById('callCard').style.display !== 'flex') {
+                document.getElementById('idleCard').style.display = 'flex';
+            }
         };
-        document.getElementById('closeStatsBtn').onclick = () => {
-            document.getElementById('statsModal').style.display = 'none';
+
+        document.getElementById('navStats').onclick = () => {
+            document.getElementById('navStats').classList.add('active');
+            document.getElementById('navCalls').classList.remove('active');
+            document.getElementById('idleCard').style.display = 'none';
+            document.getElementById('ringingCard').style.display = 'none';
+            document.getElementById('callCard').style.display = 'none';
+            document.getElementById('statsCard').style.display = 'flex';
         };
     </script>
 </body>
