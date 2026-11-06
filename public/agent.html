@@ -173,10 +173,10 @@
             await setupWebRTC();
             startTimer();
 
-            // Notify server/customer that agent has answered and is ready for WebRTC offer
             ws.send(JSON.stringify({ type: 'AGENT_READY_FOR_CALL' }));
         };
 
+        // Explicit Decline Button Handler
         document.getElementById('declineCallBtn').onclick = () => {
             ws.send(JSON.stringify({ type: 'DECLINE' }));
             resetCall();

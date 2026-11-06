@@ -40,8 +40,30 @@ wss.on('connection', (ws) => {
                     });
                     break;
 
-                case 'HANGUP':
                 case 'DECLINE':
+                    if (agents.has(ws)) {
+                        const agentData = agents.get(ws);
+                        if (agentData.currentCustomer) {
+                            const custWs = agentData.currentCustomer;
+                            const custData = customers.get(custWs);
+                            if (custData) {
+                                custData.status = 'WAITING';
+                                if (!waitingQueue.includes(custWs)) {
+                                    waitingQueue.unshift(custWs); // Re-queue customer at the front
+                                }
+                            }
+                            if (custWs.readyState === 1) {
+                                custWs.send(JSON.stringify({ type: 'AGENT_DECLINED' }));
+                            }
+                        }
+                        agentData.status = 'IDLE';
+                        agentData.currentCustomer = null;
+                    }
+                    broadcastStats();
+                    checkQueue();
+                    break;
+
+                case 'HANGUP':
                     handleDisconnect(ws);
                     break;
             }
