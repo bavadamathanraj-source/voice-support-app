@@ -32,6 +32,7 @@ wss.on('connection', (ws) => {
                 case 'offer':
                 case 'answer':
                 case 'candidate':
+                case 'AGENT_READY_FOR_CALL':
                     wss.clients.forEach(client => {
                         if (client !== ws && client.readyState === 1) {
                             client.send(message);
