@@ -2,37 +2,92 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Customer Widget</title>
+    <title>Customer Support Widget</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background-color: #f8fafc; height: 100vh; }
-        .widget { position: fixed; bottom: 24px; right: 24px; width: 360px; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; overflow: hidden; }
-        .header { background: #0f172a; color: #fff; padding: 20px; }
-        .body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-        .input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
-        .btn { width: 100%; background: #0f172a; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        .btn-red { background: #ef4444; }
-        .timer { font-size: 32px; font-weight: 700; color: #22c55e; margin: 10px 0; text-align: center; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #f8fafc; height: 100vh; position: relative; }
+
+        .support-widget {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 420px;
+            height: 540px;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .widget-header { background-color: #0f172a; color: #ffffff; padding: 28px; position: relative; }
+        .widget-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+        .widget-header p { font-size: 15px; color: #94a3b8; }
+        .close-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+        .widget-body { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 14px; font-weight: 600; color: #334155; }
+        .phone-input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #fff; }
+        .phone-input:focus { border-color: #0f172a; }
+
+        .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
+        .option-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .option-content h4 { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+        .option-content p { font-size: 14px; color: #64748b; }
+        .icon-circle { width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0f172a; }
+
+        .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .timer { font-size: 36px; font-weight: 700; color: #16a34a; margin: 16px 0; }
+        
+        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 12px; }
+        .btn-red:hover { background: #dc2626; }
+
+        .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
+        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; cursor: pointer; font-weight: 500; }
+        .nav-item.active { color: #0f172a; }
+        .nav-icon { font-size: 18px; margin-bottom: 2px; }
     </style>
 </head>
 <body>
 
-    <div class="widget">
-        <div class="header">
-            <h3>Live Voice Support</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Direct WebRTC Connection</p>
+    <div class="support-widget">
+        <div class="widget-header">
+            <button class="close-btn">×</button>
+            <h2 id="widgetTitle">Hi there 👋</h2>
+            <p id="widgetSub">How can we help?</p>
         </div>
 
-        <div class="body" id="formView">
-            <label style="font-size: 13px; font-weight: 600; color: #475569;">Enter Phone Number</label>
-            <input type="tel" id="phoneInput" class="input" placeholder="+971 50 123 4567" />
-            <button id="callBtn" class="btn">Start Voice Call</button>
+        <div class="widget-body" id="defaultView">
+            <div class="form-group">
+                <label for="customerPhone">Your Phone Number</label>
+                <input type="tel" id="customerPhone" class="phone-input" placeholder="+971 50 123 4567" />
+            </div>
+
+            <div class="option-card" id="callBtn">
+                <div class="option-content">
+                    <h4>Talk to us</h4>
+                    <p>Start a live voice call with support</p>
+                </div>
+                <div class="icon-circle">📞</div>
+            </div>
         </div>
 
-        <div class="body" id="callView" style="display: none; text-align: center;">
-            <h4 id="statusText" style="color: #0f172a;">Connecting...</h4>
+        <div class="active-call-box" id="callView">
+            <h3 id="status" style="font-size: 18px; color: #0f172a;">Connecting to Agent...</h3>
+            <p id="displayPhone" style="font-size: 14px; color: #64748b; margin-top: 4px;"></p>
             <div class="timer" id="callTimer" style="display: none;">00:00</div>
-            <button id="endBtn" class="btn btn-red">End Call</button>
+            
+            <button id="endCallBtn" class="btn-red">End Call</button>
+        </div>
+
+        <div class="widget-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div>Home</div>
+            <div class="nav-item"><div class="nav-icon">💬</div>Messages</div>
+            <div class="nav-item"><div class="nav-icon">🎫</div>Tickets</div>
         </div>
     </div>
 
@@ -41,20 +96,28 @@
     <script>
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
-
-        let pc = null;
-        let timerInterval, seconds = 0;
+        
+        const statusEl = document.getElementById('status');
+        const defaultView = document.getElementById('defaultView');
+        const callView = document.getElementById('callView');
+        const widgetTitle = document.getElementById('widgetTitle');
+        const widgetSub = document.getElementById('widgetSub');
+        const callTimer = document.getElementById('callTimer');
+        const customerPhoneInput = document.getElementById('customerPhone');
+        const displayPhone = document.getElementById('displayPhone');
+        
+        let pc, timerInterval, seconds = 0;
         const rtcConfig = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
 
         ws.onmessage = async (event) => {
             const data = JSON.parse(event.data);
 
             if (data.type === 'QUEUED') {
-                document.getElementById('statusText').innerText = `All agents busy. Queue position: ${data.position}`;
-            }
+                statusEl.innerText = `All agents busy. You are in queue (Position: ${data.position})`;
+            } 
             else if (data.type === 'CALL_CONNECTED') {
-                document.getElementById('statusText').innerText = `Connected with ${data.agentId}!`;
-                document.getElementById('callTimer').style.display = 'block';
+                statusEl.innerText = `Connected with Agent (${data.agentId})!`;
+                callTimer.style.display = 'block';
                 startTimer();
 
                 await setupWebRTC();
@@ -70,30 +133,30 @@
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
             else if (data.type === 'HANGUP') {
-                resetCall();
+                resetCallState();
             }
         };
 
         async function setupWebRTC() {
             pc = new RTCPeerConnection(rtcConfig);
-
+            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 stream.getTracks().forEach(track => pc.addTrack(track, stream));
             } catch(e) {
-                console.error("Microphone access error:", e);
+                console.error("Mic access error:", e);
             }
 
-            pc.onicecandidate = (e) => {
-                if (e.candidate) {
-                    ws.send(JSON.stringify({ type: 'candidate', candidate: e.candidate }));
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
                 }
             };
 
-            pc.ontrack = (e) => {
+            pc.ontrack = (event) => {
                 const audio = document.getElementById('remoteAudio');
-                audio.srcObject = e.streams[0];
-                audio.play().catch(err => console.log('Audio autoplay unblocked on gesture'));
+                audio.srcObject = event.streams[0];
+                audio.play().catch(err => console.log('Audio autoplay unblocked'));
             };
         }
 
@@ -104,35 +167,42 @@
                 seconds++;
                 const m = String(Math.floor(seconds / 60)).padStart(2, '0');
                 const s = String(seconds % 60).padStart(2, '0');
-                document.getElementById('callTimer').innerText = `${m}:${s}`;
+                callTimer.innerText = `${m}:${s}`;
             }, 1000);
         }
 
-        function resetCall() {
+        function resetCallState() {
             clearInterval(timerInterval);
             if (pc) { pc.close(); pc = null; }
-            document.getElementById('callView').style.display = 'none';
-            document.getElementById('formView').style.display = 'flex';
-            document.getElementById('callTimer').style.display = 'none';
+            callTimer.style.display = 'none';
+            defaultView.style.display = 'flex';
+            callView.style.display = 'none';
+            widgetTitle.innerText = 'Hi there 👋';
+            widgetSub.innerText = 'How can we help?';
+            displayPhone.innerText = '';
         }
 
         document.getElementById('callBtn').onclick = () => {
-            const phoneNumber = document.getElementById('phoneInput').value.trim();
+            const phoneNumber = customerPhoneInput.value.trim();
             if (!phoneNumber) {
-                alert('Please enter a phone number.');
+                alert('Please enter your phone number before starting the call.');
+                customerPhoneInput.focus();
                 return;
             }
 
-            document.getElementById('formView').style.display = 'none';
-            document.getElementById('callView').style.display = 'flex';
-            document.getElementById('statusText').innerText = 'Routing call...';
+            defaultView.style.display = 'none';
+            callView.style.display = 'flex';
+            widgetTitle.innerText = 'Live Voice Call';
+            widgetSub.innerText = 'Smart Queue Routing';
+            displayPhone.innerText = `Phone: ${phoneNumber}`;
+            statusEl.innerText = 'Connecting to queue...';
 
             ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
         };
 
-        document.getElementById('endBtn').onclick = () => {
+        document.getElementById('endCallBtn').onclick = () => {
             ws.send(JSON.stringify({ type: 'HANGUP' }));
-            resetCall();
+            resetCallState();
         };
     </script>
 </body>
