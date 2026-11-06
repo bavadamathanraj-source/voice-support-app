@@ -59,7 +59,6 @@
         </div>
 
         <div class="widget-body" id="mainContentArea">
-            <!-- Default / Idle View -->
             <div class="agent-card" id="idleCard">
                 <h3>System Idle</h3>
                 <p>Waiting for customer to call...</p>
@@ -69,7 +68,6 @@
                 </div>
             </div>
 
-            <!-- Stats View -->
             <div class="agent-card" id="statsCard" style="display: none;">
                 <h3>Live Center Statistics</h3>
                 <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
@@ -80,7 +78,6 @@
                 </div>
             </div>
 
-            <!-- Incoming Ringing Call View -->
             <div class="agent-card" id="ringingCard" style="display: none; text-align: center;">
                 <h3 style="color: #0284c7;">Incoming Customer Call</h3>
                 <p id="phoneDisplay" style="font-weight: 600; color: #0f172a;">Phone: --</p>
@@ -90,7 +87,6 @@
                 </div>
             </div>
 
-            <!-- Active Connected Call View -->
             <div class="agent-card" id="callCard" style="display: none; text-align: center;">
                 <h3>Active Call</h3>
                 <p id="activePhoneDisplay" style="color: #64748b; font-size: 13px;"></p>
@@ -162,7 +158,6 @@
             }
         };
 
-        // Explicit Answer Button Handler
         document.getElementById('answerCallBtn').onclick = async () => {
             document.getElementById('ringingCard').style.display = 'none';
             document.getElementById('callCard').style.display = 'flex';
@@ -172,11 +167,9 @@
 
             await setupWebRTC();
             startTimer();
-
             ws.send(JSON.stringify({ type: 'AGENT_READY_FOR_CALL' }));
         };
 
-        // Explicit Decline Button Handler
         document.getElementById('declineCallBtn').onclick = () => {
             ws.send(JSON.stringify({ type: 'DECLINE' }));
             resetCall();

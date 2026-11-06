@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { WebSocketServer } = require('ws');
 
 const app = express();
@@ -7,6 +8,10 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.static('public'));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const agents = new Map();     // ws -> { id, status: 'IDLE' | 'BUSY', currentCustomer: null }
 const customers = new Map();  // ws -> { id, phoneNumber, status: 'WAITING' | 'IN_CALL' }
@@ -46,12 +51,10 @@ wss.on('connection', (ws) => {
                         if (agentData.currentCustomer) {
                             const custWs = agentData.currentCustomer;
                             
-                            // Remove customer from queue/active tracking
                             const qIdx = waitingQueue.indexOf(custWs);
                             if (qIdx > -1) waitingQueue.splice(qIdx, 1);
                             customers.delete(custWs);
 
-                            // Send explicit decline notification to the customer
                             if (custWs.readyState === 1) {
                                 custWs.send(JSON.stringify({ 
                                     type: 'AGENT_BUSY_DECLINED', 
