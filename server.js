@@ -46,12 +46,12 @@ wss.on('connection', (ws) => {
                         if (agentData.currentCustomer) {
                             const custWs = agentData.currentCustomer;
                             
-                            // Remove customer completely from queue/session tracking
+                            // Remove customer from queue/active tracking
                             const qIdx = waitingQueue.indexOf(custWs);
                             if (qIdx > -1) waitingQueue.splice(qIdx, 1);
                             customers.delete(custWs);
 
-                            // Send explicit notification to customer that agent is busy
+                            // Send explicit decline notification to the customer
                             if (custWs.readyState === 1) {
                                 custWs.send(JSON.stringify({ 
                                     type: 'AGENT_BUSY_DECLINED', 

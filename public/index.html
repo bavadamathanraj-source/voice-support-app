@@ -1,261 +1,191 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Customer Support Widget</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #f8fafc; height: 100vh; position: relative; }
+const express = require('express');
+const http = require('http');
+const { WebSocketServer } = require('ws');
 
-        .support-widget {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            width: 420px;
-            height: 540px;
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
-            border: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+app.use(express.static('public'));
+
+const agents = new Map();     // ws -> { id, status: 'IDLE' | 'BUSY', currentCustomer: null }
+const customers = new Map();  // ws -> { id, phoneNumber, status: 'WAITING' | 'IN_CALL' }
+const waitingQueue = [];      // Customer sockets in queue
+
+wss.on('connection', (ws) => {
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message);
+
+            switch (data.type) {
+                case 'REGISTER_AGENT':
+                    agents.set(ws, { id: data.agentId, status: 'IDLE', currentCustomer: null });
+                    broadcastStats();
+                    checkQueue();
+                    break;
+
+                case 'REGISTER_CUSTOMER':
+                    customers.set(ws, { id: ws, phoneNumber: data.phoneNumber, status: 'WAITING' });
+                    attemptRoute(ws);
+                    break;
+
+                case 'offer':
+                case 'answer':
+                case 'candidate':
+                case 'AGENT_READY_FOR_CALL':
+                    wss.clients.forEach(client => {
+                        if (client !== ws && client.readyState === 1) {
+                            client.send(message);
+                        }
+                    });
+                    break;
+
+                case 'DECLINE':
+                    if (agents.has(ws)) {
+                        const agentData = agents.get(ws);
+                        if (agentData.currentCustomer) {
+                            const custWs = agentData.currentCustomer;
+                            
+                            // Remove customer from queue/active tracking
+                            const qIdx = waitingQueue.indexOf(custWs);
+                            if (qIdx > -1) waitingQueue.splice(qIdx, 1);
+                            customers.delete(custWs);
+
+                            // Send explicit decline notification to the customer
+                            if (custWs.readyState === 1) {
+                                custWs.send(JSON.stringify({ 
+                                    type: 'AGENT_BUSY_DECLINED', 
+                                    message: 'Agent is busy and cannot accept the call at this moment.' 
+                                }));
+                            }
+                        }
+                        agentData.status = 'IDLE';
+                        agentData.currentCustomer = null;
+                    }
+                    broadcastStats();
+                    checkQueue();
+                    break;
+
+                case 'HANGUP':
+                    handleDisconnect(ws);
+                    break;
+            }
+        } catch (err) {
+            console.error('Signal parsing error:', err);
         }
+    });
 
-        .widget-header { background-color: #0f172a; color: #ffffff; padding: 28px; position: relative; }
-        .widget-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-        .widget-header p { font-size: 15px; color: #94a3b8; }
-        .close-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    ws.on('close', () => {
+        handleDisconnect(ws);
+        agents.delete(ws);
+        customers.delete(ws);
+        broadcastStats();
+    });
+});
 
-        .widget-body { padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; }
-        
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-group label { font-size: 14px; font-weight: 600; color: #334155; }
-        .phone-input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #fff; }
-        .phone-input:focus { border-color: #0f172a; }
+function attemptRoute(customerWs) {
+    let freeAgentWs = null;
+    for (let [agentWs, agentData] of agents.entries()) {
+        if (agentData.status === 'IDLE') {
+            freeAgentWs = agentWs;
+            break;
+        }
+    }
 
-        .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
-        .option-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .option-content h4 { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
-        .option-content p { font-size: 14px; color: #64748b; }
-        .icon-circle { width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0f172a; }
+    if (freeAgentWs) {
+        const agentData = agents.get(freeAgentWs);
+        const customerData = customers.get(customerWs);
 
-        .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .timer { font-size: 32px; font-weight: 700; color: #16a34a; margin: 10px 0; }
-        
-        .notification-banner { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 10px; font-size: 14px; margin-bottom: 12px; display: none; text-align: center; font-weight: 500; }
+        agentData.status = 'BUSY';
+        agentData.currentCustomer = customerWs;
+        customerData.status = 'IN_CALL';
 
-        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
-        .btn-red { background: #ef4444; color: white; width: 100%; }
-        .btn-gray { background: #cbd5e1; color: #0f172a; flex: 1; }
-        .btn-gray.active { background: #475569; color: #fff; }
-        .btn-group { display: flex; gap: 8px; width: 100%; margin-top: 10px; }
+        const qIdx = waitingQueue.indexOf(customerWs);
+        if (qIdx > -1) waitingQueue.splice(qIdx, 1);
 
-        .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
-        .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; cursor: pointer; font-weight: 500; }
-        .nav-item.active { color: #0f172a; }
-        .nav-icon { font-size: 18px; margin-bottom: 2px; }
-    </style>
-</head>
-<body>
+        freeAgentWs.send(JSON.stringify({
+            type: 'INCOMING_CALL',
+            phoneNumber: customerData.phoneNumber
+        }));
 
-    <div class="support-widget">
-        <div class="widget-header">
-            <button class="close-btn">×</button>
-            <h2 id="widgetTitle">Hi there 👋</h2>
-            <p id="widgetSub">How can we help?</p>
-        </div>
+        customerWs.send(JSON.stringify({
+            type: 'CALL_CONNECTED',
+            agentId: agentData.id
+        }));
+    } else {
+        if (!waitingQueue.includes(customerWs)) {
+            waitingQueue.push(customerWs);
+        }
+        customerWs.send(JSON.stringify({
+            type: 'QUEUED',
+            position: waitingQueue.indexOf(customerWs) + 1
+        }));
+    }
+    broadcastStats();
+}
 
-        <div class="widget-body" id="defaultView">
-            <div class="notification-banner" id="notificationBanner"></div>
-
-            <div class="form-group">
-                <label for="customerPhone">Your Phone Number</label>
-                <input type="tel" id="customerPhone" class="phone-input" value="+971 " />
-            </div>
-
-            <div class="option-card" id="callBtn">
-                <div class="option-content">
-                    <h4>Talk to us</h4>
-                    <p>Start a live voice call with support</p>
-                </div>
-                <div class="icon-circle">📞</div>
-            </div>
-        </div>
-
-        <div class="active-call-box" id="callView">
-            <h3 id="status" style="font-size: 18px; color: #0f172a;">Connecting to Agent...</h3>
-            <p id="displayPhone" style="font-size: 14px; color: #64748b; margin-top: 4px;"></p>
-            <div class="timer" id="callTimer" style="display: none;">00:00</div>
-            
-            <div class="btn-group">
-                <button id="custMuteBtn" class="btn btn-gray">Mute</button>
-                <button id="custHoldBtn" class="btn btn-gray">Hold</button>
-            </div>
-            <button id="endCallBtn" class="btn btn-red" style="margin-top: 10px;">End Call</button>
-        </div>
-
-        <div class="widget-nav">
-            <div class="nav-item active"><div class="nav-icon">🏠</div>Home</div>
-            <div class="nav-item"><div class="nav-icon">💬</div>Messages</div>
-            <div class="nav-item"><div class="nav-icon">🎫</div>Tickets</div>
-        </div>
-    </div>
-
-    <audio id="remoteAudio" autoplay playsinline></audio>
-
-    <script>
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${protocol}//${window.location.host}`);
-        
-        const statusEl = document.getElementById('status');
-        const defaultView = document.getElementById('defaultView');
-        const callView = document.getElementById('callView');
-        const widgetTitle = document.getElementById('widgetTitle');
-        const widgetSub = document.getElementById('widgetSub');
-        const callTimer = document.getElementById('callTimer');
-        const customerPhoneInput = document.getElementById('customerPhone');
-        const displayPhone = document.getElementById('displayPhone');
-        const notificationBanner = document.getElementById('notificationBanner');
-        
-        let pc = null;
-        let localStream = null;
-        let timerInterval, seconds = 0;
-        let isMuted = false;
-        let isOnHold = false;
-        const rtcConfig = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
-
-        ws.onmessage = async (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'QUEUED') {
-                statusEl.innerText = `All agents busy. You are in queue (Position: ${data.position})`;
-            } 
-            else if (data.type === 'CALL_CONNECTED') {
-                notificationBanner.style.display = 'none'; // Clear banner on new call
-                statusEl.innerText = `Connected with Agent (${data.agentId})!`;
-                callTimer.style.display = 'block';
-                startTimer();
+function checkQueue() {
+    if (waitingQueue.length > 0) {
+        for (let [agentWs, agentData] of agents.entries()) {
+            if (agentData.status === 'IDLE' && waitingQueue.length > 0) {
+                const nextCustomer = waitingQueue.shift();
+                attemptRoute(nextCustomer);
+                break;
             }
-            else if (data.type === 'AGENT_BUSY_DECLINED') {
-                // Agent declined call -> Cut call and show notification
-                resetCallState();
-                notificationBanner.innerText = data.message;
-                notificationBanner.style.display = 'block';
-            }
-            else if (data.type === 'HANGUP') {
-                resetCallState();
-            }
-            else if (data.type === 'answer') {
-                if (!pc) return;
-                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-            }
-            else if (data.type === 'candidate' && pc) {
-                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-            }
-        };
+        }
+    }
+}
 
-        async function setupWebRTC() {
-            pc = new RTCPeerConnection(rtcConfig);
-            
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            } catch(e) {
-                console.error("Mic access error:", e);
+function handleDisconnect(ws) {
+    if (agents.has(ws)) {
+        const agentData = agents.get(ws);
+        if (agentData.currentCustomer) {
+            const custWs = agentData.currentCustomer;
+            const custData = customers.get(custWs);
+            if (custData) {
+                custData.status = 'WAITING';
+                waitingQueue.unshift(custWs);
             }
+            if (custWs.readyState === 1) {
+                custWs.send(JSON.stringify({ type: 'HANGUP' }));
+            }
+        }
+        agentData.status = 'IDLE';
+        agentData.currentCustomer = null;
+    } else if (customers.has(ws)) {
+        const qIdx = waitingQueue.indexOf(ws);
+        if (qIdx > -1) waitingQueue.splice(qIdx, 1);
 
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+        for (let [agentWs, agentData] of agents.entries()) {
+            if (agentData.currentCustomer === ws) {
+                agentData.status = 'IDLE';
+                agentData.currentCustomer = null;
+                if (agentWs.readyState === 1) {
+                    agentWs.send(JSON.stringify({ type: 'HANGUP' }));
                 }
-            };
-
-            pc.ontrack = (event) => {
-                const audio = document.getElementById('remoteAudio');
-                audio.srcObject = event.streams[0];
-                audio.play().catch(err => console.log('Audio autoplay unblocked'));
-            };
-        }
-
-        function startTimer() {
-            seconds = 0;
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                seconds++;
-                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
-                const s = String(seconds % 60).padStart(2, '0');
-                callTimer.innerText = `${m}:${s}`;
-            }, 1000);
-        }
-
-        function resetCallState() {
-            clearInterval(timerInterval);
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
+                break;
             }
-            if (pc) { pc.close(); pc = null; }
-            isMuted = false;
-            isOnHold = false;
-            document.getElementById('custMuteBtn').classList.remove('active');
-            document.getElementById('custMuteBtn').innerText = 'Mute';
-            document.getElementById('custHoldBtn').classList.remove('active');
-            document.getElementById('custHoldBtn').innerText = 'Hold';
-            callTimer.style.display = 'none';
-            defaultView.style.display = 'flex';
-            callView.style.display = 'none';
-            widgetTitle.innerText = 'Hi there 👋';
-            widgetSub.innerText = 'How can we help?';
-            displayPhone.innerText = '';
         }
+    }
+    broadcastStats();
+    checkQueue();
+}
 
-        document.getElementById('custMuteBtn').onclick = () => {
-            if (!localStream) return;
-            isMuted = !isMuted;
-            localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-            const btn = document.getElementById('custMuteBtn');
-            btn.classList.toggle('active', isMuted);
-            btn.innerText = isMuted ? 'Unmute' : 'Mute';
-        };
+function broadcastStats() {
+    const stats = {
+        type: 'QUEUE_STATS',
+        waitingCount: waitingQueue.length,
+        activeAgents: Array.from(agents.values()).filter(a => a.status === 'BUSY').length,
+        idleAgents: Array.from(agents.values()).filter(a => a.status === 'IDLE').length,
+        totalAgents: agents.size
+    };
 
-        document.getElementById('custHoldBtn').onclick = () => {
-            if (!localStream) return;
-            isOnHold = !isOnHold;
-            localStream.getAudioTracks().forEach(track => track.enabled = !isOnHold);
-            const btn = document.getElementById('custHoldBtn');
-            btn.classList.toggle('active', isOnHold);
-            btn.innerText = isOnHold ? 'Resume' : 'Hold';
-        };
+    wss.clients.forEach(client => {
+        if (client.readyState === 1) {
+            client.send(JSON.stringify(stats));
+        }
+    });
+}
 
-        document.getElementById('callBtn').onclick = async () => {
-            const phoneNumber = customerPhoneInput.value.trim();
-            if (!phoneNumber || phoneNumber === '+971') {
-                alert('Please enter your complete phone number.');
-                customerPhoneInput.focus();
-                return;
-            }
-
-            notificationBanner.style.display = 'none';
-            defaultView.style.display = 'none';
-            callView.style.display = 'flex';
-            widgetTitle.innerText = 'Live Voice Call';
-            widgetSub.innerText = 'Smart Queue Routing';
-            displayPhone.innerText = `Phone: ${phoneNumber}`;
-            statusEl.innerText = 'Connecting to queue...';
-
-            await setupWebRTC();
-            ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
-            
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            ws.send(JSON.stringify({ type: 'offer', offer }));
-        };
-
-        document.getElementById('endCallBtn').onclick = () => {
-            ws.send(JSON.stringify({ type: 'HANGUP' }));
-            resetCallState();
-        };
-    </script>
-</body>
-</html>
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
