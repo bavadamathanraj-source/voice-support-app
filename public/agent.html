@@ -17,13 +17,12 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            position: relative;
         }
 
         .header { background: #0f172a; color: #ffffff; padding: 24px; display: flex; flex-direction: column; gap: 4px; }
         .header-top { display: flex; justify-content: space-between; align-items: center; }
         .header h2 { font-size: 20px; font-weight: 700; }
-        .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #94a3b8; }
+        .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #94a3b8; margin-top: 6px; }
         .status-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
 
         .content-body { flex: 1; padding: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f8fafc; text-align: center; }
@@ -99,6 +98,7 @@
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
 
         let pc = null;
+        let localStream = null;
         let timerInterval, seconds = 0;
         const rtcConfig = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
 
@@ -141,10 +141,11 @@
             pc = new RTCPeerConnection(rtcConfig);
             
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             } catch(e) {
-                console.error("Mic access error:", e);
+                console.error("Microphone access error:", e);
+                alert("Please allow microphone access to enable voice calls.");
             }
 
             pc.onicecandidate = (e) => {
@@ -156,7 +157,7 @@
             pc.ontrack = (e) => {
                 const audio = document.getElementById('remoteAudio');
                 audio.srcObject = e.streams[0];
-                audio.play().catch(err => console.log('Audio autoplay unblocked'));
+                audio.play().catch(err => console.log('Audio autoplay unblocked:', err));
             };
 
             startTimer();
@@ -175,6 +176,10 @@
 
         function resetCall() {
             clearInterval(timerInterval);
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
             if (pc) { pc.close(); pc = null; }
             document.getElementById('callCard').style.display = 'none';
             document.getElementById('idleCard').style.display = 'flex';
