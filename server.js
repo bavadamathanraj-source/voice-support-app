@@ -8,10 +8,9 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.static('public'));
 
-// Direct socket tracking maps
 const agents = new Map();     // ws -> { id, status: 'IDLE' | 'BUSY', currentCustomer: null }
 const customers = new Map();  // ws -> { id, phoneNumber, status: 'WAITING' | 'IN_CALL' }
-const waitingQueue = [];      // Array of customer websockets
+const waitingQueue = [];      // Customer sockets in queue
 
 wss.on('connection', (ws) => {
     ws.on('message', (message) => {
@@ -21,24 +20,20 @@ wss.on('connection', (ws) => {
             switch (data.type) {
                 case 'REGISTER_AGENT':
                     agents.set(ws, { id: data.agentId, status: 'IDLE', currentCustomer: null });
-                    console.log(`Agent registered: ${data.agentId}`);
                     broadcastStats();
                     checkQueue();
                     break;
 
                 case 'REGISTER_CUSTOMER':
                     customers.set(ws, { id: ws, phoneNumber: data.phoneNumber, status: 'WAITING' });
-                    console.log(`Customer registered with phone: ${data.phoneNumber}`);
                     attemptRoute(ws);
                     break;
 
-                // Simple direct peer-to-peer WebRTC signal relay
                 case 'offer':
                 case 'answer':
                 case 'candidate':
-                    // Broadcast or forward to the paired partner
                     wss.clients.forEach(client => {
-                        if (client !== ws && client.readyState === ws.OPEN) {
+                        if (client !== ws && client.readyState === 1) {
                             client.send(message);
                         }
                     });
@@ -46,16 +41,16 @@ wss.on('connection', (ws) => {
 
                 case 'HANGUP':
                 case 'DECLINE':
-                    handleDisconnectOrDecline(ws);
+                    handleDisconnect(ws);
                     break;
             }
         } catch (err) {
-            console.error('Error handling message:', err);
+            console.error('Signal parsing error:', err);
         }
     });
 
     ws.on('close', () => {
-        handleDisconnectOrDecline(ws);
+        handleDisconnect(ws);
         agents.delete(ws);
         customers.delete(ws);
         broadcastStats();
@@ -79,11 +74,9 @@ function attemptRoute(customerWs) {
         agentData.currentCustomer = customerWs;
         customerData.status = 'IN_CALL';
 
-        // Remove from queue if present
         const qIdx = waitingQueue.indexOf(customerWs);
         if (qIdx > -1) waitingQueue.splice(qIdx, 1);
 
-        // Notify Agent and Customer
         freeAgentWs.send(JSON.stringify({
             type: 'INCOMING_CALL',
             phoneNumber: customerData.phoneNumber
@@ -93,8 +86,6 @@ function attemptRoute(customerWs) {
             type: 'CALL_CONNECTED',
             agentId: agentData.id
         }));
-
-        console.log(`Matched customer to ${agentData.id}`);
     } else {
         if (!waitingQueue.includes(customerWs)) {
             waitingQueue.push(customerWs);
@@ -109,7 +100,6 @@ function attemptRoute(customerWs) {
 
 function checkQueue() {
     if (waitingQueue.length > 0) {
-        // Find if any agent is idle
         for (let [agentWs, agentData] of agents.entries()) {
             if (agentData.status === 'IDLE' && waitingQueue.length > 0) {
                 const nextCustomer = waitingQueue.shift();
@@ -120,7 +110,7 @@ function checkQueue() {
     }
 }
 
-function handleDisconnectOrDecline(ws) {
+function handleDisconnect(ws) {
     if (agents.has(ws)) {
         const agentData = agents.get(ws);
         if (agentData.currentCustomer) {
@@ -128,9 +118,9 @@ function handleDisconnectOrDecline(ws) {
             const custData = customers.get(custWs);
             if (custData) {
                 custData.status = 'WAITING';
-                waitingQueue.unshift(custWs); // Re-queue customer at the front
+                waitingQueue.unshift(custWs);
             }
-            if (custWs.readyState === ws.OPEN) {
+            if (custWs.readyState === 1) {
                 custWs.send(JSON.stringify({ type: 'HANGUP' }));
             }
         }
@@ -144,7 +134,7 @@ function handleDisconnectOrDecline(ws) {
             if (agentData.currentCustomer === ws) {
                 agentData.status = 'IDLE';
                 agentData.currentCustomer = null;
-                if (agentWs.readyState === ws.OPEN) {
+                if (agentWs.readyState === 1) {
                     agentWs.send(JSON.stringify({ type: 'HANGUP' }));
                 }
                 break;
@@ -164,13 +154,11 @@ function broadcastStats() {
     };
 
     wss.clients.forEach(client => {
-        if (client.readyState === ws.OPEN) {
+        if (client.readyState === 1) {
             client.send(JSON.stringify(stats));
         }
     });
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

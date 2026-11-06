@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <title>Customer Widget</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
         body { background-color: #f8fafc; height: 100vh; }
-        .widget { position: fixed; bottom: 24px; right: 24px; width: 380px; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
+        .widget { position: fixed; bottom: 24px; right: 24px; width: 360px; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; overflow: hidden; }
         .header { background: #0f172a; color: #fff; padding: 20px; }
         .body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
         .input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
@@ -19,12 +19,13 @@
 
     <div class="widget">
         <div class="header">
-            <h3>Support Widget</h3>
-            <p style="color: #94a3b8; font-size: 13px;">Talk to a live agent</p>
+            <h3>Live Voice Support</h3>
+            <p style="color: #94a3b8; font-size: 13px;">Direct WebRTC Connection</p>
         </div>
 
         <div class="body" id="formView">
-            <input type="tel" id="phoneInput" class="input" placeholder="Enter Phone Number..." />
+            <label style="font-size: 13px; font-weight: 600; color: #475569;">Enter Phone Number</label>
+            <input type="tel" id="phoneInput" class="input" placeholder="+971 50 123 4567" />
             <button id="callBtn" class="btn">Start Voice Call</button>
         </div>
 
@@ -35,7 +36,7 @@
         </div>
     </div>
 
-    <audio id="remoteAudio" autoplay></audio>
+    <audio id="remoteAudio" autoplay playsinline></audio>
 
     <script>
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -43,7 +44,7 @@
 
         let pc = null;
         let timerInterval, seconds = 0;
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        const rtcConfig = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
 
         ws.onmessage = async (event) => {
             const data = JSON.parse(event.data);
@@ -52,11 +53,11 @@
                 document.getElementById('statusText').innerText = `All agents busy. Queue position: ${data.position}`;
             }
             else if (data.type === 'CALL_CONNECTED') {
-                document.getElementById('statusText').innerText = `Connected to ${data.agentId}!`;
+                document.getElementById('statusText').innerText = `Connected with ${data.agentId}!`;
                 document.getElementById('callTimer').style.display = 'block';
                 startTimer();
 
-                setupWebRTC();
+                await setupWebRTC();
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 ws.send(JSON.stringify({ type: 'offer', offer }));
@@ -75,8 +76,13 @@
 
         async function setupWebRTC() {
             pc = new RTCPeerConnection(rtcConfig);
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+            } catch(e) {
+                console.error("Microphone access error:", e);
+            }
 
             pc.onicecandidate = (e) => {
                 if (e.candidate) {
@@ -85,12 +91,15 @@
             };
 
             pc.ontrack = (e) => {
-                document.getElementById('remoteAudio').srcObject = e.streams[0];
+                const audio = document.getElementById('remoteAudio');
+                audio.srcObject = e.streams[0];
+                audio.play().catch(err => console.log('Audio autoplay unblocked on gesture'));
             };
         }
 
         function startTimer() {
             seconds = 0;
+            clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 seconds++;
                 const m = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -101,8 +110,7 @@
 
         function resetCall() {
             clearInterval(timerInterval);
-            if (pc) pc.close();
-            pc = null;
+            if (pc) { pc.close(); pc = null; }
             document.getElementById('callView').style.display = 'none';
             document.getElementById('formView').style.display = 'flex';
             document.getElementById('callTimer').style.display = 'none';
@@ -111,13 +119,13 @@
         document.getElementById('callBtn').onclick = () => {
             const phoneNumber = document.getElementById('phoneInput').value.trim();
             if (!phoneNumber) {
-                alert('Please enter your phone number.');
+                alert('Please enter a phone number.');
                 return;
             }
 
             document.getElementById('formView').style.display = 'none';
             document.getElementById('callView').style.display = 'flex';
-            document.getElementById('statusText').innerText = 'Finding available agent...';
+            document.getElementById('statusText').innerText = 'Routing call...';
 
             ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
         };
