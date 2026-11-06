@@ -31,7 +31,11 @@
         
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-group label { font-size: 14px; font-weight: 600; color: #334155; }
-        .phone-input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #fff; }
+        
+        .phone-input-group { display: flex; gap: 8px; width: 100%; }
+        .country-select { width: 130px; padding: 12px 8px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; background: #fff; color: #0f172a; cursor: pointer; }
+        .country-select:focus { border-color: #0f172a; }
+        .phone-input { flex: 1; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; background: #fff; }
         .phone-input:focus { border-color: #0f172a; }
 
         .option-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
@@ -71,7 +75,22 @@
 
             <div class="form-group">
                 <label for="customerPhone">Your Phone Number</label>
-                <input type="tel" id="customerPhone" class="phone-input" value="+971 " />
+                <div class="phone-input-group">
+                    <select id="countryCode" class="country-select">
+                        <option value="+971" selected>🇦🇪 UAE (+971)</option>
+                        <option value="+91">🇮🇳 IN (+91)</option>
+                        <option value="+1">🇺🇸 US (+1)</option>
+                        <option value="+44">🇬🇧 UK (+44)</option>
+                        <option value="+966">🇸🇦 KSA (+966)</option>
+                        <option value="+974">🇶🇦 QA (+974)</option>
+                        <option value="+968">🇴🇲 OM (+968)</option>
+                        <option value="+973">🇧🇭 BH (+973)</option>
+                        <option value="+965">🇰🇼 KW (+965)</option>
+                        <option value="+61">🇦🇺 AU (+61)</option>
+                        <option value="+65">🇸🇬 SG (+65)</option>
+                    </select>
+                    <input type="tel" id="customerPhone" class="phone-input" placeholder="50 123 4567" />
+                </div>
             </div>
 
             <div class="option-card" id="callBtn">
@@ -114,6 +133,7 @@
         const widgetTitle = document.getElementById('widgetTitle');
         const widgetSub = document.getElementById('widgetSub');
         const callTimer = document.getElementById('callTimer');
+        const countryCodeSelect = document.getElementById('countryCode');
         const customerPhoneInput = document.getElementById('customerPhone');
         const displayPhone = document.getElementById('displayPhone');
         const notificationBanner = document.getElementById('notificationBanner');
@@ -228,23 +248,25 @@
         };
 
         document.getElementById('callBtn').onclick = async () => {
-            const phoneNumber = customerPhoneInput.value.trim();
-            if (!phoneNumber || phoneNumber === '+971') {
-                alert('Please enter your complete phone number.');
+            const rawNumber = customerPhoneInput.value.trim();
+            if (!rawNumber) {
+                alert('Please enter your phone number.');
                 customerPhoneInput.focus();
                 return;
             }
+
+            const fullPhoneNumber = `${countryCodeSelect.value} ${rawNumber}`;
 
             notificationBanner.style.display = 'none';
             defaultView.style.display = 'none';
             callView.style.display = 'flex';
             widgetTitle.innerText = 'Live Voice Call';
             widgetSub.innerText = 'Smart Queue Routing';
-            displayPhone.innerText = `Phone: ${phoneNumber}`;
+            displayPhone.innerText = `Phone: ${fullPhoneNumber}`;
             statusEl.innerText = 'Connecting to queue...';
 
             await setupWebRTC();
-            ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
+            ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber: fullPhoneNumber }));
             
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
