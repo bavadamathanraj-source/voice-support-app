@@ -41,10 +41,13 @@
         .icon-circle { width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0f172a; }
 
         .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        .timer { font-size: 36px; font-weight: 700; color: #16a34a; margin: 16px 0; }
+        .timer { font-size: 32px; font-weight: 700; color: #16a34a; margin: 10px 0; }
         
-        .btn-red { width: 100%; background: #ef4444; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 12px; }
-        .btn-red:hover { background: #dc2626; }
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .btn-red { background: #ef4444; color: white; width: 100%; }
+        .btn-gray { background: #cbd5e1; color: #0f172a; flex: 1; }
+        .btn-gray.active { background: #475569; color: #fff; }
+        .btn-group { display: flex; gap: 8px; width: 100%; margin-top: 10px; }
 
         .widget-nav { display: flex; border-top: 1px solid #e2e8f0; background: #ffffff; padding: 12px 0; }
         .nav-item { flex: 1; text-align: center; font-size: 12px; color: #64748b; cursor: pointer; font-weight: 500; }
@@ -64,7 +67,8 @@
         <div class="widget-body" id="defaultView">
             <div class="form-group">
                 <label for="customerPhone">Your Phone Number</label>
-                <input type="tel" id="customerPhone" class="phone-input" placeholder="+971 50 123 4567" />
+                <!-- Pre-populated with +971 default -->
+                <input type="tel" id="customerPhone" class="phone-input" value="+971 " />
             </div>
 
             <div class="option-card" id="callBtn">
@@ -81,7 +85,11 @@
             <p id="displayPhone" style="font-size: 14px; color: #64748b; margin-top: 4px;"></p>
             <div class="timer" id="callTimer" style="display: none;">00:00</div>
             
-            <button id="endCallBtn" class="btn-red">End Call</button>
+            <div class="btn-group">
+                <button id="custMuteBtn" class="btn btn-gray">Mute</button>
+                <button id="custHoldBtn" class="btn btn-gray">Hold</button>
+            </div>
+            <button id="endCallBtn" class="btn btn-red" style="margin-top: 10px;">End Call</button>
         </div>
 
         <div class="widget-nav">
@@ -106,7 +114,11 @@
         const customerPhoneInput = document.getElementById('customerPhone');
         const displayPhone = document.getElementById('displayPhone');
         
-        let pc, timerInterval, seconds = 0;
+        let pc = null;
+        let localStream = null;
+        let timerInterval, seconds = 0;
+        let isMuted = false;
+        let isOnHold = false;
         const rtcConfig = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
 
         ws.onmessage = async (event) => {
@@ -141,10 +153,11 @@
             pc = new RTCPeerConnection(rtcConfig);
             
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             } catch(e) {
                 console.error("Mic access error:", e);
+                alert("Please allow microphone access to place a call.");
             }
 
             pc.onicecandidate = (event) => {
@@ -173,7 +186,17 @@
 
         function resetCallState() {
             clearInterval(timerInterval);
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
             if (pc) { pc.close(); pc = null; }
+            isMuted = false;
+            isOnHold = false;
+            document.getElementById('custMuteBtn').classList.remove('active');
+            document.getElementById('custMuteBtn').innerText = 'Mute';
+            document.getElementById('custHoldBtn').classList.remove('active');
+            document.getElementById('custHoldBtn').innerText = 'Hold';
             callTimer.style.display = 'none';
             defaultView.style.display = 'flex';
             callView.style.display = 'none';
@@ -182,10 +205,30 @@
             displayPhone.innerText = '';
         }
 
+        // Customer Mute Button
+        document.getElementById('custMuteBtn').onclick = () => {
+            if (!localStream) return;
+            isMuted = !isMuted;
+            localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+            const btn = document.getElementById('custMuteBtn');
+            btn.classList.toggle('active', isMuted);
+            btn.innerText = isMuted ? 'Unmute' : 'Mute';
+        };
+
+        // Customer Hold Button
+        document.getElementById('custHoldBtn').onclick = () => {
+            if (!localStream) return;
+            isOnHold = !isOnHold;
+            localStream.getAudioTracks().forEach(track => track.enabled = !isOnHold);
+            const btn = document.getElementById('custHoldBtn');
+            btn.classList.toggle('active', isOnHold);
+            btn.innerText = isOnHold ? 'Resume' : 'Hold';
+        };
+
         document.getElementById('callBtn').onclick = () => {
             const phoneNumber = customerPhoneInput.value.trim();
-            if (!phoneNumber) {
-                alert('Please enter your phone number before starting the call.');
+            if (!phoneNumber || phoneNumber === '+971') {
+                alert('Please enter your complete phone number.');
                 customerPhoneInput.focus();
                 return;
             }

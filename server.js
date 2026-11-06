@@ -150,7 +150,8 @@ function broadcastStats() {
         type: 'QUEUE_STATS',
         waitingCount: waitingQueue.length,
         activeAgents: Array.from(agents.values()).filter(a => a.status === 'BUSY').length,
-        idleAgents: Array.from(agents.values()).filter(a => a.status === 'IDLE').length
+        idleAgents: Array.from(agents.values()).filter(a => a.status === 'IDLE').length,
+        totalAgents: agents.size
     };
 
     wss.clients.forEach(client => {
