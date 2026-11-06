@@ -43,6 +43,8 @@
         .active-call-box { padding: 24px; text-align: center; background: #fff; flex: 1; display: none; flex-direction: column; justify-content: center; align-items: center; }
         .timer { font-size: 32px; font-weight: 700; color: #16a34a; margin: 10px 0; }
         
+        .notification-banner { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 10px; font-size: 14px; margin-bottom: 12px; display: none; text-align: center; font-weight: 500; }
+
         .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
         .btn-red { background: #ef4444; color: white; width: 100%; }
         .btn-gray { background: #cbd5e1; color: #0f172a; flex: 1; }
@@ -65,9 +67,10 @@
         </div>
 
         <div class="widget-body" id="defaultView">
+            <div class="notification-banner" id="notificationBanner"></div>
+
             <div class="form-group">
                 <label for="customerPhone">Your Phone Number</label>
-                <!-- Pre-populated with +971 default -->
                 <input type="tel" id="customerPhone" class="phone-input" value="+971 " />
             </div>
 
@@ -113,6 +116,7 @@
         const callTimer = document.getElementById('callTimer');
         const customerPhoneInput = document.getElementById('customerPhone');
         const displayPhone = document.getElementById('displayPhone');
+        const notificationBanner = document.getElementById('notificationBanner');
         
         let pc = null;
         let localStream = null;
@@ -128,14 +132,19 @@
                 statusEl.innerText = `All agents busy. You are in queue (Position: ${data.position})`;
             } 
             else if (data.type === 'CALL_CONNECTED') {
+                notificationBanner.style.display = 'none'; // Clear banner on new call
                 statusEl.innerText = `Connected with Agent (${data.agentId})!`;
                 callTimer.style.display = 'block';
                 startTimer();
-
-                await setupWebRTC();
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                ws.send(JSON.stringify({ type: 'offer', offer }));
+            }
+            else if (data.type === 'AGENT_BUSY_DECLINED') {
+                // Agent declined call -> Cut call and show notification
+                resetCallState();
+                notificationBanner.innerText = data.message;
+                notificationBanner.style.display = 'block';
+            }
+            else if (data.type === 'HANGUP') {
+                resetCallState();
             }
             else if (data.type === 'answer') {
                 if (!pc) return;
@@ -143,9 +152,6 @@
             }
             else if (data.type === 'candidate' && pc) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-            }
-            else if (data.type === 'HANGUP') {
-                resetCallState();
             }
         };
 
@@ -157,7 +163,6 @@
                 localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             } catch(e) {
                 console.error("Mic access error:", e);
-                alert("Please allow microphone access to place a call.");
             }
 
             pc.onicecandidate = (event) => {
@@ -205,7 +210,6 @@
             displayPhone.innerText = '';
         }
 
-        // Customer Mute Button
         document.getElementById('custMuteBtn').onclick = () => {
             if (!localStream) return;
             isMuted = !isMuted;
@@ -215,7 +219,6 @@
             btn.innerText = isMuted ? 'Unmute' : 'Mute';
         };
 
-        // Customer Hold Button
         document.getElementById('custHoldBtn').onclick = () => {
             if (!localStream) return;
             isOnHold = !isOnHold;
@@ -225,7 +228,7 @@
             btn.innerText = isOnHold ? 'Resume' : 'Hold';
         };
 
-        document.getElementById('callBtn').onclick = () => {
+        document.getElementById('callBtn').onclick = async () => {
             const phoneNumber = customerPhoneInput.value.trim();
             if (!phoneNumber || phoneNumber === '+971') {
                 alert('Please enter your complete phone number.');
@@ -233,6 +236,7 @@
                 return;
             }
 
+            notificationBanner.style.display = 'none';
             defaultView.style.display = 'none';
             callView.style.display = 'flex';
             widgetTitle.innerText = 'Live Voice Call';
@@ -240,7 +244,12 @@
             displayPhone.innerText = `Phone: ${phoneNumber}`;
             statusEl.innerText = 'Connecting to queue...';
 
+            await setupWebRTC();
             ws.send(JSON.stringify({ type: 'REGISTER_CUSTOMER', phoneNumber }));
+            
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(JSON.stringify({ type: 'offer', offer }));
         };
 
         document.getElementById('endCallBtn').onclick = () => {

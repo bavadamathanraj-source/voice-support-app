@@ -45,15 +45,18 @@ wss.on('connection', (ws) => {
                         const agentData = agents.get(ws);
                         if (agentData.currentCustomer) {
                             const custWs = agentData.currentCustomer;
-                            const custData = customers.get(custWs);
-                            if (custData) {
-                                custData.status = 'WAITING';
-                                if (!waitingQueue.includes(custWs)) {
-                                    waitingQueue.unshift(custWs); // Re-queue customer at the front
-                                }
-                            }
+                            
+                            // Remove customer completely from queue/session tracking
+                            const qIdx = waitingQueue.indexOf(custWs);
+                            if (qIdx > -1) waitingQueue.splice(qIdx, 1);
+                            customers.delete(custWs);
+
+                            // Send explicit notification to customer that agent is busy
                             if (custWs.readyState === 1) {
-                                custWs.send(JSON.stringify({ type: 'AGENT_DECLINED' }));
+                                custWs.send(JSON.stringify({ 
+                                    type: 'AGENT_BUSY_DECLINED', 
+                                    message: 'Agent is busy and cannot accept the call at this moment.' 
+                                }));
                             }
                         }
                         agentData.status = 'IDLE';
